@@ -1,13 +1,16 @@
-import sys
+import sys, os
 sys.path.insert(0, ".")
+from dotenv import load_dotenv
+load_dotenv()
 
-from backend.config import load
 from backend.bunq_client.bootstrap import ensure_context
 from backend.bunq_client.client import RealBunqClient
 
-cfg = load()
-ensure_context(cfg.bunq_api_key, cfg.bunq_environment)
+api_key = os.environ["BUNQ_API_KEY"]
+environment = os.environ.get("BUNQ_ENVIRONMENT", "SANDBOX")
+
+ensure_context(api_key, environment)
 c = RealBunqClient()
-print("primary:", c.primary_account_id())
+print("primary account id:", c.primary_account_id())
 print("balance:", c.balance())
-print("payments:", c.recent_payments(limit=3))
+print("recent payments:", c.recent_payments(limit=3))
