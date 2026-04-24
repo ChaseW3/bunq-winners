@@ -96,6 +96,19 @@
     }
 
     #transcript.placeholder { color: #333; font-size: 15px; }
+
+    .you {
+      color: #888;
+      font-size: 14px;
+      margin-bottom: 8px;
+      font-style: italic;
+    }
+
+    .reply {
+      color: #fff;
+      font-size: 19px;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -168,18 +181,32 @@
       form.append('audio', blob, 'recording.webm');
 
       try {
-        const resp = await fetch(`${BACKEND}/transcribe`, { method: 'POST', body: form });
+        const resp = await fetch(`${BACKEND}/voice`, { method: 'POST', body: form });
         const data = await resp.json();
         tapArea.className = '';
         hint.textContent = 'Tap to speak';
         transcript.className = '';
-        transcript.textContent = data.text || '(nothing heard — try again)';
+        if (data.error) {
+          transcript.innerHTML = `<div class="reply">⚠️ ${data.error}</div>`;
+        } else if (!data.reply_text && !data.user_text) {
+          transcript.innerHTML = `<div class="reply">(nothing heard — try again)</div>`;
+        } else {
+          transcript.innerHTML =
+            (data.user_text ? `<div class="you">"${escapeHtml(data.user_text)}"</div>` : '') +
+            `<div class="reply">${escapeHtml(data.reply_text || '')}</div>`;
+        }
       } catch (e) {
         tapArea.className = '';
         hint.textContent = 'Tap to speak';
         transcript.className = '';
         transcript.textContent = '⚠️ Could not reach backend.';
       }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
     }
   </script>
 </body>
