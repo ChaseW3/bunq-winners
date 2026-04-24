@@ -1,0 +1,6 @@
+# Local only - not for sharing
+ideas.md
+notes.md
+*.local.*
+.env
+.DS_Store
