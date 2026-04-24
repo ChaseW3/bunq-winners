@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>bunq Voice</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    #tap-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #tap-area.recording {
+      background: #1a0a0a;
+    }
+
+    #orb {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 40px rgba(37, 99, 235, 0.3);
+    }
+
+    #tap-area.recording #orb {
+      background: #dc2626;
+      box-shadow: 0 0 60px rgba(220, 38, 38, 0.5);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    #tap-area.thinking #orb {
+      background: #7c3aed;
+      box-shadow: 0 0 60px rgba(124, 58, 237, 0.5);
+      animation: spin-pulse 1.2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.12); }
+    }
+
+    @keyframes spin-pulse {
+      0%, 100% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+
+    #orb svg { width: 44px; height: 44px; fill: white; }
+
+    #hint {
+      margin-top: 28px;
+      font-size: 15px;
+      color: #555;
+      letter-spacing: 0.03em;
+      transition: opacity 0.3s;
+    }
+
+    #tap-area.recording #hint { color: #dc2626; }
+    #tap-area.thinking #hint { color: #7c3aed; }
+
+    #output {
+      padding: 24px 28px 32px;
+      min-height: 120px;
+      border-top: 1px solid #1a1a1a;
+      display: flex;
+      align-items: flex-start;
+    }
+
+    #transcript {
+      font-size: 18px;
+      line-height: 1.55;
+      color: #e5e7eb;
+      flex: 1;
+    }
+
+    #transcript.placeholder { color: #333; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <div id="tap-area">
+    <div id="orb">
+      <!-- mic icon -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-6 9a6 6 0 0 0 12 0h2a8 8 0 0 1-7 7.93V20h3v2H8v-2h3v-2.07A8 8 0 0 1 4 10h2z"/>
+      </svg>
+    </div>
+    <div id="hint">Tap to speak</div>
+  </div>
+
+  <div id="output">
+    <div id="transcript" class="placeholder">Your words will appear here...</div>
+  </div>
+
+  <script>
+    const tapArea = document.getElementById('tap-area');
+    const hint = document.getElementById('hint');
+    const transcript = document.getElementById('transcript');
+    const BACKEND = 'http://localhost:8000';
+
+    let recorder = null;
+    let chunks = [];
+    let isRecording = false;
+
+    tapArea.addEventListener('click', toggle);
+    tapArea.addEventListener('touchend', e => { e.preventDefault(); toggle(); });
+
+    async function toggle() {
+      if (isRecording) {
+        stopRecording();
+      } else {
+        await startRecording();
+      }
+    }
+
+    async function startRecording() {
+      try {
+        chunks = [];
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = e => chunks.push(e.data);
+        recorder.onstop = sendAudio;
+        recorder.start();
+        isRecording = true;
+        tapArea.className = 'recording';
+        hint.textContent = 'Tap to stop';
+      } catch (e) {
+        transcript.className = '';
+        transcript.textContent = '⚠️ Mic access denied — check browser permissions.';
+      }
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+        recorder.stream.getTracks().forEach(t => t.stop());
+      }
+      isRecording = false;
+      tapArea.className = 'thinking';
+      hint.textContent = 'Thinking...';
+    }
+
+    async function sendAudio() {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const form = new FormData();
+      form.append('audio', blob, 'recording.webm');
+
+      try {
+        const resp = await fetch(`${BACKEND}/transcribe`, { method: 'POST', body: form });
+        const data = await resp.json();
+        tapArea.className = '';
+        hint.textContent = 'Tap to speak';
+        transcript.className = '';
+        transcript.textContent = data.text || '(nothing heard — try again)';
+      } catch (e) {
+        tapArea.className = '';
+        hint.textContent = 'Tap to speak';
+        transcript.className = '';
+        transcript.textContent = '⚠️ Could not reach backend.';
+      }
+    }
+  </script>
+</body>
+</html>
