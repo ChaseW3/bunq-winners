@@ -4,3 +4,9 @@ notes.md
 *.local.*
 .env
 .DS_Store
+__pycache__/
+*.pyc
+.venv/
+.bunq_context.cfg
+.env
+uv.lock
