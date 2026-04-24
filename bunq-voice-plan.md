@@ -38,7 +38,7 @@ Build in priority order. Tier 1 must work on stage. Tier 2 and 3 elevate the sto
 
 - **Balance query** — "What's my balance?" / "How much in my savings account?"
 - **Transaction summary** — "Read my last five transactions" → summarized, not raw ("You spent €43 at three grocery stores this week, biggest was Albert Heijn at €22")
-- **Send money** — "Send €20 to Michelle" → voice repeat-back ("Sending 20 euros to Michelle Weng. Say yes to confirm.") → biometric gate → submit
+- **Send money** — "Send €20 to Finn" → voice repeat-back ("Sending 20 euros to Finn Bunq. Say yes to confirm.") → biometric gate → submit
 - **Scan-to-pay** — camera → vision model → extract payee IBAN + amount → draft payment → voice confirm
 
 ### Tier 2 — Shows off the AI

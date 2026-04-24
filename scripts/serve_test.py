@@ -65,13 +65,18 @@ async def voice(audio: UploadFile = File(...)):
         user_text = stt_resp.text
 
         if not user_text.strip():
-            return {"user_text": "", "reply_text": "I didn't catch that. Try again.", "pending": None}
+            return {"user_text": "", "reply_text": "I didn't catch that. Try again.", "pending": None, "tool_calls": []}
 
         # 2. LLM with tools
-        reply_text = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=user_text, model=LLM_MODEL)
+        result = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=user_text, model=LLM_MODEL)
 
         pending = store.get(SHARED_SID)["pending_draft"]
-        return {"user_text": user_text, "reply_text": reply_text, "pending": pending}
+        return {
+            "user_text": user_text,
+            "reply_text": result["reply"],
+            "tool_calls": result["tool_calls"],
+            "pending": pending,
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -81,9 +86,14 @@ async def voice(audio: UploadFile = File(...)):
 async def text(message: str = Form(...)):
     """Text-only entry point for fast iteration without recording."""
     try:
-        reply_text = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=message, model=LLM_MODEL)
+        result = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=message, model=LLM_MODEL)
         pending = store.get(SHARED_SID)["pending_draft"]
-        return {"user_text": message, "reply_text": reply_text, "pending": pending}
+        return {
+            "user_text": message,
+            "reply_text": result["reply"],
+            "tool_calls": result["tool_calls"],
+            "pending": pending,
+        }
     except Exception as e:
         import traceback
         traceback.print_exc()

@@ -24,9 +24,11 @@ def run_llm_turn(
     *,
     user_text: str,
     model: str = "claude-sonnet-4-5",
-) -> str:
+) -> dict[str, Any]:
+    """Returns {'reply': str, 'tool_calls': [{name, input, result, is_error}]}."""
     system = build_system_prompt(store.get(sid))
     messages: list[dict[str, Any]] = [{"role": "user", "content": user_text}]
+    tool_calls: list[dict[str, Any]] = []
 
     for _ in range(MAX_ITERATIONS):
         resp = llm.messages_create(
@@ -45,13 +47,21 @@ def run_llm_turn(
             for b in blocks:
                 if b.get("type") != "tool_use":
                     continue
+                args = b.get("input", {})
                 try:
-                    result = dispatch(bunq, store, sid, b["name"], b.get("input", {}))
+                    result = dispatch(bunq, store, sid, b["name"], args)
                     content = _jsonable(result)
                     is_error = False
                 except Exception as e:
-                    content = f"Error: {type(e).__name__}: {e}"
+                    result = f"Error: {type(e).__name__}: {e}"
+                    content = result
                     is_error = True
+                tool_calls.append({
+                    "name": b["name"],
+                    "input": args,
+                    "result": result,
+                    "is_error": is_error,
+                })
                 tool_results.append({
                     "type": "tool_result",
                     "tool_use_id": b["id"],
@@ -63,6 +73,7 @@ def run_llm_turn(
             continue
 
         texts = [b["text"] for b in blocks if b.get("type") == "text"]
-        return " ".join(t.strip() for t in texts if t.strip())
+        reply = " ".join(t.strip() for t in texts if t.strip())
+        return {"reply": reply, "tool_calls": tool_calls}
 
     raise RuntimeError("LLM loop exceeded max iterations")

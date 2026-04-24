@@ -109,6 +109,44 @@
       font-size: 19px;
       line-height: 1.5;
     }
+
+    .tool-calls {
+      margin-top: 16px;
+      border-top: 1px solid #1a1a1a;
+      padding-top: 14px;
+    }
+
+    .tool-call {
+      background: #0f1419;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .tool-call .name {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+
+    .tool-call.error .name { color: #f87171; }
+
+    .tool-call .args {
+      color: #9ca3af;
+    }
+
+    .tool-call .result {
+      color: #d1d5db;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px dashed #1f2937;
+      word-break: break-word;
+    }
+
+    .tool-call .arrow { color: #4b5563; margin: 0 4px; }
   </style>
 </head>
 <body>
@@ -187,13 +225,33 @@
         hint.textContent = 'Tap to speak';
         transcript.className = '';
         if (data.error) {
-          transcript.innerHTML = `<div class="reply">⚠️ ${data.error}</div>`;
+          transcript.innerHTML = `<div class="reply">⚠️ ${escapeHtml(data.error)}</div>`;
         } else if (!data.reply_text && !data.user_text) {
           transcript.innerHTML = `<div class="reply">(nothing heard — try again)</div>`;
         } else {
-          transcript.innerHTML =
+          let html =
             (data.user_text ? `<div class="you">"${escapeHtml(data.user_text)}"</div>` : '') +
             `<div class="reply">${escapeHtml(data.reply_text || '')}</div>`;
+
+          if (data.tool_calls && data.tool_calls.length > 0) {
+            html += '<div class="tool-calls">';
+            for (const tc of data.tool_calls) {
+              const argsStr = Object.keys(tc.input).length
+                ? `(${Object.entries(tc.input).map(([k, v]) =>
+                    `${k}=${typeof v === 'string' ? `"${v}"` : JSON.stringify(v)}`
+                  ).join(', ')})`
+                : '()';
+              const resultStr = typeof tc.result === 'string'
+                ? tc.result
+                : JSON.stringify(tc.result);
+              html += `<div class="tool-call${tc.is_error ? ' error' : ''}">
+                <span class="name">${escapeHtml(tc.name)}</span><span class="args">${escapeHtml(argsStr)}</span>
+                <div class="result"><span class="arrow">→</span>${escapeHtml(resultStr)}</div>
+              </div>`;
+            }
+            html += '</div>';
+          }
+          transcript.innerHTML = html;
         }
       } catch (e) {
         tapArea.className = '';
