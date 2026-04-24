@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>STT Test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 400px; margin: 60px auto; padding: 0 20px; }
+    button { width: 100%; padding: 20px; font-size: 18px; border-radius: 12px; border: none; cursor: pointer; }
+    #record { background: #e74c3c; color: white; }
+    #record.recording { background: #c0392b; animation: pulse 1s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.6 } }
+    #result { margin-top: 20px; padding: 16px; background: #f5f5f5; border-radius: 8px; min-height: 60px; font-size: 16px; }
+    #status { margin-top: 10px; color: #888; font-size: 14px; }
+    #playback { margin-top: 12px; display: none; }
+  </style>
+</head>
+<body>
+  <h2>Whisper STT Test</h2>
+  <button id="record">Hold to Record</button>
+  <div id="result">Transcription will appear here...</div>
+  <div id="status"></div>
+  <audio id="playback" controls></audio>
+
+  <script>
+    const btn = document.getElementById('record');
+    const result = document.getElementById('result');
+    const status = document.getElementById('status');
+    const playback = document.getElementById('playback');
+    const BACKEND = 'http://localhost:8000';
+
+    let recorder, chunks = [];
+
+    btn.addEventListener('mousedown', startRecording);
+    btn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+    btn.addEventListener('mouseup', stopRecording);
+    btn.addEventListener('touchend', stopRecording);
+
+    async function startRecording() {
+      chunks = [];
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = sendAudio;
+      recorder.start();
+      btn.textContent = '🔴 Recording...';
+      btn.classList.add('recording');
+    }
+
+    function stopRecording() {
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.stop();
+        recorder.stream.getTracks().forEach(t => t.stop());
+      }
+      btn.textContent = 'Hold to Record';
+      btn.classList.remove('recording');
+    }
+
+    async function sendAudio() {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      // Let you hear exactly what Whisper receives
+      playback.src = URL.createObjectURL(blob);
+      playback.style.display = 'block';
+      status.textContent = `Blob size: ${blob.size} bytes — sending to Whisper...`;
+
+      if (blob.size < 1000) {
+        result.textContent = '⚠️ Audio too small — mic may not be capturing. Check browser mic permissions.';
+        status.textContent = '';
+        return;
+      }
+
+      const form = new FormData();
+      form.append('audio', blob, 'recording.webm');
+      try {
+        const resp = await fetch(`${BACKEND}/transcribe`, { method: 'POST', body: form });
+        const data = await resp.json();
+        if (data.error) {
+          result.textContent = '⚠️ Server error: ' + data.error;
+        } else {
+          result.textContent = data.text || '(Whisper returned empty — try speaking louder or longer)';
+        }
+        status.textContent = `✓ Done — blob was ${blob.size} bytes`;
+      } catch (e) {
+        result.textContent = 'Error: ' + e.message;
+        status.textContent = '';
+      }
+    }
+  </script>
+</body>
+</html>
