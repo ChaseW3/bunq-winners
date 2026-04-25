@@ -438,7 +438,55 @@ const A11yLog = (() => {
     if (ttsAudio) { try { ttsAudio.pause(); } catch {} ttsAudio = null; }
   }
 
-  // ── Auto-Greeting ──
+  // ── Auto-Greeting + Guided Tour ──
+  let tourRunning = false;
+
+  async function waitForTts(text) {
+    setVoiceState('speaking');
+    const audio = await speakText(text);
+    if (audio) {
+      await new Promise(resolve => { audio.onended = resolve; });
+    } else {
+      await new Promise(r => setTimeout(r, Math.max(1500, text.length * 55)));
+    }
+  }
+
+  async function sendTextAndSpeak(userMessage) {
+    A11yLog.log('AUDIO', 'tour-prompt', `Demo: "${userMessage}"`);
+    setVoiceState('thinking');
+    thinkingOsc = EarconSystem.play('thinking');
+    A11yLog.log('STATE', 'thinking', 'Lynn is processing the request');
+
+    const form = new FormData();
+    form.append('message', userMessage);
+    try {
+      const resp = await fetch(`${BACKEND}/text`, { method: 'POST', body: form });
+      const data = await resp.json();
+      console.log('Tour response:', data);
+      stopThinkingEarcon();
+
+      // Log tool calls
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        for (const tc of data.tool_calls) {
+          const argsStr = Object.keys(tc.input || {}).length
+            ? `(${Object.entries(tc.input).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(', ')})`
+            : '()';
+          A11yLog.log('ACTION', `tool: ${tc.name}`, argsStr);
+        }
+      }
+
+      A11yLog.logBackendEvents(data.accessibility_events);
+
+      if (data.reply_text) {
+        A11yLog.log('AUDIO', 'tts-playback', 'Lynn speaking response aloud');
+        await waitForTts(data.reply_text);
+      }
+    } catch (e) {
+      stopThinkingEarcon();
+      A11yLog.log('ERROR', 'tour-error', `Failed: ${e.message || e}`);
+    }
+  }
+
   async function triggerGreeting() {
     EarconSystem.play('greeting');
     A11yLog.log('EARCON', 'greeting', 'Warm chime signals app is alive');
@@ -446,13 +494,33 @@ const A11yLog = (() => {
 
     await new Promise(r => setTimeout(r, 600));
 
-    setVoiceState('speaking');
-    const audio = await speakText("Hi, I'm Lynn, your bunq accessibility assistant. What can I do for you today?");
-    if (audio) {
-      audio.onended = () => { setVoiceState('idle'); };
-    } else {
-      setTimeout(() => { if (appState === 'speaking') setVoiceState('idle'); }, 4000);
-    }
+    await waitForTts("Hi, I'm Lynn, your bunq accessibility assistant. Let me show you what I can do.");
+
+    // Start guided tour
+    tourRunning = true;
+    await new Promise(r => setTimeout(r, 800));
+
+    // Step 1: Balance check
+    A11yLog.log('STATE', 'tour-step', 'Demo: checking account balance');
+    await sendTextAndSpeak("What's my balance?");
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Step 2: Spending overview
+    A11yLog.log('STATE', 'tour-step', 'Demo: reviewing recent spending');
+    await sendTextAndSpeak("What did I spend this week?");
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Step 3: Send money (draft)
+    A11yLog.log('STATE', 'tour-step', 'Demo: voice payment with safety readback');
+    await sendTextAndSpeak("Send 5 euros to Nikki for lunch");
+    await new Promise(r => setTimeout(r, 1000));
+
+    // Wrap up
+    await waitForTts("And that's just a few things I can help with. Hold anywhere on the screen to talk to me.");
+    A11yLog.log('STATE', 'tour-complete', 'Guided tour finished — user can now interact freely');
+
+    tourRunning = false;
+    setVoiceState('idle');
   }
 
   // ── Voice Agent State ──
@@ -663,6 +731,7 @@ const A11yLog = (() => {
     }
 
     // Voice agent interaction (after activation)
+    if (tourRunning) return;
     if (appState === 'idle') {
       await startRecording();
     } else if (appState === 'thinking' || appState === 'speaking') {
