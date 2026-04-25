@@ -117,6 +117,48 @@ async def text(message: str = Form(...)):
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": f"{type(e).__name__}: {e}"})
 
+@app.get("/glance")
+async def glance():
+    """Quick audio glance: balance health, today's spending, incoming payments."""
+    from datetime import date
+    try:
+        balance = float(bunq.balance())
+        payments = bunq.recent_payments(limit=50)
+        today = date.today().isoformat()
+
+        today_spent = sum(
+            abs(float(p.amount)) for p in payments
+            if p.date == today and float(p.amount) < 0
+        )
+        has_incoming = any(
+            float(p.amount) > 0 and p.date == today
+            for p in payments
+        )
+
+        if balance > 500:
+            balance_level = "good"
+        elif balance > 100:
+            balance_level = "okay"
+        else:
+            balance_level = "low"
+
+        if today_spent < 20:
+            spending_level = "light"
+        elif today_spent < 75:
+            spending_level = "moderate"
+        else:
+            spending_level = "heavy"
+
+        return {
+            "balance_level": balance_level,
+            "spending_level": spending_level,
+            "has_incoming": has_incoming,
+            "balance": balance,
+            "today_spent": today_spent,
+        }
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 @app.get("/")
 async def root():
     return FileResponse("frontend/demo-transition.html")

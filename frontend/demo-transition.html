@@ -466,6 +466,138 @@ function stopThinkingEarcon() {
     thinkingOsc = null;
   }
 }
+
+// ── Audio Glance System ──
+const AudioGlance = (() => {
+  const BACKEND = 'http://localhost:8000';
+
+  function playTone(freq, duration, type = 'sine', volume = 0.2) {
+    const ac = EarconSystem.getCtx();
+    const now = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.linearRampToValueAtTime(0, now + duration);
+    osc.start(now);
+    osc.stop(now + duration);
+    return new Promise(r => setTimeout(r, duration * 1000 + 80));
+  }
+
+  async function playBalanceTone(level) {
+    if (level === 'good') {
+      await playTone(880, 0.4, 'sine', 0.25);     // bright high A5
+    } else if (level === 'okay') {
+      await playTone(523, 0.4, 'sine', 0.2);      // mid C5
+    } else {
+      await playTone(220, 0.6, 'sawtooth', 0.15); // deep warning A3
+    }
+  }
+
+  async function playSpendingPulse(level) {
+    const freq = 660;
+    if (level === 'light') {
+      await playTone(freq, 0.1, 'sine', 0.15);
+    } else if (level === 'moderate') {
+      await playTone(freq, 0.1, 'sine', 0.15);
+      await new Promise(r => setTimeout(r, 50));
+      await playTone(freq, 0.1, 'sine', 0.15);
+    } else {
+      for (let i = 0; i < 3; i++) {
+        await playTone(freq, 0.08, 'sine', 0.18);
+        if (i < 2) await new Promise(r => setTimeout(r, 40));
+      }
+    }
+  }
+
+  async function playIncomingDing(hasIncoming) {
+    if (hasIncoming) {
+      const ac = EarconSystem.getCtx();
+      const now = ac.currentTime;
+      const osc = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(784, now);       // G5
+      osc.frequency.linearRampToValueAtTime(1047, now + 0.25); // C6
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now);
+      osc.stop(now + 0.35);
+      await new Promise(r => setTimeout(r, 400));
+    }
+  }
+
+  async function trigger() {
+    try {
+      const resp = await fetch(`${BACKEND}/glance`);
+      const data = await resp.json();
+      console.log('Glance data:', data);
+
+      A11yLog.log('ACTION', 'audio-glance', 'Triple-tap triggered quick audio status check');
+
+      // 1. Balance tone
+      const balanceLabel = {good: 'healthy (>€500)', okay: 'moderate (€100-500)', low: 'low (<€100)'}[data.balance_level];
+      A11yLog.log('EARCON', `balance: ${data.balance_level}`, `Balance is ${balanceLabel} — tone pitch indicates level`);
+      await playBalanceTone(data.balance_level);
+      await new Promise(r => setTimeout(r, 200));
+
+      // 2. Spending pulse
+      const spendLabel = {light: 'light (<€20)', moderate: 'moderate (€20-75)', heavy: 'heavy (>€75)'}[data.spending_level];
+      A11yLog.log('EARCON', `spending: ${data.spending_level}`, `Today's spending is ${spendLabel} — tap count indicates level`);
+      await playSpendingPulse(data.spending_level);
+      await new Promise(r => setTimeout(r, 200));
+
+      // 3. Incoming ding
+      if (data.has_incoming) {
+        A11yLog.log('EARCON', 'incoming: yes', 'Ascending chime — money received today');
+      } else {
+        A11yLog.log('STATE', 'incoming: none', 'No chime — no incoming payments today');
+      }
+      await playIncomingDing(data.has_incoming);
+
+      A11yLog.log('STATE', 'glance-complete', 'Audio glance complete — 3 sounds, ~2 seconds, no words needed');
+
+    } catch (e) {
+      A11yLog.log('ERROR', 'glance-failed', `Could not fetch status: ${e.message || e}`);
+    }
+  }
+
+  return { trigger };
+})();
+
+// ── Triple-Tap Detector ──
+const TripleTap = (() => {
+  const MAX_INTERVAL = 400;
+  let taps = [];
+  let enabled = false;
+
+  function enable() { enabled = true; }
+  function disable() { enabled = false; }
+
+  function onTap() {
+    if (!enabled) return false;
+    const now = performance.now();
+    taps.push(now);
+    // Keep only last 3
+    if (taps.length > 3) taps.shift();
+    if (taps.length === 3) {
+      const gap1 = taps[1] - taps[0];
+      const gap2 = taps[2] - taps[1];
+      if (gap1 < MAX_INTERVAL && gap2 < MAX_INTERVAL) {
+        taps = [];
+        return true;
+      }
+    }
+    return false;
+  }
+
+  return { onTap, enable, disable };
+})();
   </script>
 
   <script>
@@ -630,9 +762,11 @@ const A11yLog = (() => {
     await new Promise(r => setTimeout(r, 1000));
 
     // Wrap up
-    await waitForTts("And that's just a few things I can help with. Hold anywhere on the screen to talk to me.");
+    await waitForTts("And that's just a few things I can help with. Hold anywhere to talk, or triple-tap for a quick audio status check.");
     A11yLog.log('STATE', 'tour-complete', 'Guided tour finished — user can now interact freely');
+    A11yLog.log('ACTION', 'feature-hint', 'Triple-tap = audio glance (balance + spending + incoming in ~2 seconds, no words)');
 
+    TripleTap.enable();
     tourRunning = false;
     setVoiceState('idle');
   }
@@ -954,6 +1088,13 @@ const A11yLog = (() => {
 
     // Voice agent interaction (after activation)
     if (tourRunning) return;
+
+    // Triple-tap = audio glance
+    if (TripleTap.onTap()) {
+      AudioGlance.trigger();
+      return;
+    }
+
     if (appState === 'idle') {
       await startRecording();
     } else if (appState === 'thinking' || appState === 'speaking') {
