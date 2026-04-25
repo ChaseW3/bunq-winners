@@ -10,42 +10,43 @@ class FakeBunqClient:
         self.sent_payments: list[tuple] = []
         self.card_updates: list[tuple] = []
         self.webhook_calls: list[tuple] = []
-        self._balance = Decimal("1247.00")
+        self._balance = Decimal("847.35")
         self._contacts = [
-            Contact(id="c1", name="Michelle Weng", iban="NL00BUNQ0000000001"),
-            Contact(id="c2", name="Finn Bunq", iban="NL00BUNQ0000000002"),
+            Contact(id="c1", name="Michelle Weng", iban="NL42BUNQ0123456789"),
+            Contact(id="c2", name="Nikki de Vries", iban="NL91BUNQ0987654321"),
             Contact(id="c3", name="Jan Bakker", iban="NL00BUNQ0000000003"),
+            Contact(id="c4", name="Finn Bunq", iban="NL00BUNQ0000000002"),
         ]
         self._payments = [
-            PaymentSummary(date="2026-04-24", counterparty="Albert Heijn",  amount=Decimal("-18.75"), description="groceries"),
+            PaymentSummary(date="2026-04-25", counterparty="Albert Heijn",  amount=Decimal("-32.40"), description="groceries"),
+            PaymentSummary(date="2026-04-25", counterparty="Nikki de Vries",amount=Decimal("15.00"),  description="lunch payback"),
+            PaymentSummary(date="2026-04-25", counterparty="Starbucks",     amount=Decimal("-6.20"),  description="coffee"),
+            PaymentSummary(date="2026-04-24", counterparty="Uber",          amount=Decimal("-14.20"), description=""),
             PaymentSummary(date="2026-04-24", counterparty="Spotify",       amount=Decimal("-10.99"), description="subscription"),
-            PaymentSummary(date="2026-04-23", counterparty="Uber",          amount=Decimal("-14.20"), description=""),
-            PaymentSummary(date="2026-04-23", counterparty="Starbucks",     amount=Decimal("-4.80"),  description="coffee"),
-            PaymentSummary(date="2026-04-22", counterparty="Albert Heijn",  amount=Decimal("-22.30"), description="groceries"),
+            PaymentSummary(date="2026-04-24", counterparty="Thuisbezorgd",  amount=Decimal("-28.50"), description="takeaway"),
+            PaymentSummary(date="2026-04-23", counterparty="Albert Heijn",  amount=Decimal("-22.30"), description="groceries"),
+            PaymentSummary(date="2026-04-23", counterparty="KPN",           amount=Decimal("-47.82"), description="internet bill"),
+            PaymentSummary(date="2026-04-22", counterparty="Uber",          amount=Decimal("-40.00"), description=""),
             PaymentSummary(date="2026-04-22", counterparty="Albert Heijn",  amount=Decimal("-18.10"), description="groceries"),
-            PaymentSummary(date="2026-04-22", counterparty="KPN",           amount=Decimal("-47.82"), description="internet bill"),
-            PaymentSummary(date="2026-04-21", counterparty="Uber",          amount=Decimal("-40.00"), description=""),
-            PaymentSummary(date="2026-04-21", counterparty="Thuisbezorgd",  amount=Decimal("-28.50"), description="takeaway"),
+            PaymentSummary(date="2026-04-21", counterparty="Netflix",       amount=Decimal("-11.99"), description="subscription"),
+            PaymentSummary(date="2026-04-21", counterparty="Bol.com",       amount=Decimal("-67.00"), description="electronics"),
             PaymentSummary(date="2026-04-20", counterparty="Albert Heijn",  amount=Decimal("-24.60"), description="groceries"),
             PaymentSummary(date="2026-04-20", counterparty="NS",            amount=Decimal("-12.40"), description="train"),
-            PaymentSummary(date="2026-04-19", counterparty="Netflix",       amount=Decimal("-11.99"), description="subscription"),
-            PaymentSummary(date="2026-04-19", counterparty="Bol.com",       amount=Decimal("-67.00"), description="electronics"),
-            PaymentSummary(date="2026-04-18", counterparty="Dad",           amount=Decimal("500.00"), description="rent"),
+            PaymentSummary(date="2026-04-19", counterparty="Dad",           amount=Decimal("500.00"), description="birthday gift"),
             PaymentSummary(date="2026-04-18", counterparty="Jumbo",         amount=Decimal("-15.20"), description="groceries"),
-            PaymentSummary(date="2026-04-17", counterparty="Hema",          amount=Decimal("-9.95"),  description="stationery"),
             PaymentSummary(date="2026-04-17", counterparty="Starbucks",     amount=Decimal("-4.80"),  description="coffee"),
-            PaymentSummary(date="2026-04-16", counterparty="Albert Heijn",  amount=Decimal("-31.40"), description="groceries"),
-            PaymentSummary(date="2026-04-16", counterparty="Michelle Weng", amount=Decimal("-25.00"), description="dinner split"),
-            PaymentSummary(date="2026-04-15", counterparty="Gym Amsterdam", amount=Decimal("-39.00"), description="monthly"),
-            PaymentSummary(date="2026-04-14", counterparty="Employer BV",   amount=Decimal("2450.00"), description="salary"),
-            PaymentSummary(date="2026-04-14", counterparty="Shell",         amount=Decimal("-52.10"), description="fuel"),
-            PaymentSummary(date="2026-04-13", counterparty="Uber Eats",     amount=Decimal("-22.80"), description=""),
-            PaymentSummary(date="2026-04-12", counterparty="Apple",         amount=Decimal("-0.99"),  description="iCloud"),
-            PaymentSummary(date="2026-04-10", counterparty="Albert Heijn",  amount=Decimal("-19.30"), description="groceries"),
+            PaymentSummary(date="2026-04-17", counterparty="Michelle Weng", amount=Decimal("-25.00"), description="dinner split"),
+            PaymentSummary(date="2026-04-16", counterparty="Gym Amsterdam", amount=Decimal("-39.00"), description="monthly"),
+            PaymentSummary(date="2026-04-15", counterparty="Employer BV",   amount=Decimal("2450.00"), description="salary"),
+            PaymentSummary(date="2026-04-15", counterparty="Shell",         amount=Decimal("-52.10"), description="fuel"),
+            PaymentSummary(date="2026-04-14", counterparty="Uber Eats",     amount=Decimal("-22.80"), description=""),
+            PaymentSummary(date="2026-04-13", counterparty="Apple",         amount=Decimal("-0.99"),  description="iCloud"),
+            PaymentSummary(date="2026-04-12", counterparty="Albert Heijn",  amount=Decimal("-19.30"), description="groceries"),
+            PaymentSummary(date="2026-04-10", counterparty="Nikki de Vries",amount=Decimal("-50.00"), description="concert tickets"),
         ]
         self._accounts = [
-            {"id": 42, "description": "Main", "balance": "1247.00", "currency": "EUR", "status": "ACTIVE", "iban": "NL00BUNQ0000000042"},
-            {"id": 43, "description": "Holiday", "balance": "310.00", "currency": "EUR", "status": "ACTIVE", "iban": "NL00BUNQ0000000043"},
+            {"id": 42, "description": "Main", "balance": "847.35", "currency": "EUR", "status": "ACTIVE", "iban": "NL42BUNQ0000000042"},
+            {"id": 43, "description": "Holiday", "balance": "310.00", "currency": "EUR", "status": "ACTIVE", "iban": "NL42BUNQ0000000043"},
         ]
         self._savings = [
             {"id": 99, "description": "Rainy day", "balance": "3400.00", "status": "ACTIVE"},
@@ -58,7 +59,7 @@ class FakeBunqClient:
             {"id": 1, "status": "ACTIVE", "amount": "-50.00"},
         ]
         self._request_inquiries = [
-            {"id": 11, "status": "PENDING", "amount": "25.00", "description": "dinner", "counterparty": "Finn Bunq"},
+            {"id": 11, "status": "PENDING", "amount": "25.00", "description": "dinner last week", "counterparty": "Nikki de Vries"},
         ]
         self._request_responses: list[dict] = []
         self._drafts: list[dict] = []
@@ -101,7 +102,10 @@ class FakeBunqClient:
         return DraftResult(draft_id=f"draft-{len(self.draft_calls)}")
     def confirm_draft_payment(self, draft_id: str) -> ConfirmResult:
         self.confirmed.append(draft_id)
-        self._balance -= Decimal("20.00")
+        # Deduct the amount from the matching draft call
+        idx = int(draft_id.split("-")[-1]) - 1
+        if 0 <= idx < len(self.draft_calls):
+            self._balance -= self.draft_calls[idx][2]
         return ConfirmResult(status="OK", new_balance=self._balance)
     def cancel_draft_payment(self, draft_id: str, account_id: int | None = None) -> dict[str, Any]:
         self.cancelled_drafts.append(draft_id)

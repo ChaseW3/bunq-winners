@@ -1,66 +1,82 @@
 [
   {
     "role": "user",
-    "content": "Hello, how are you?"
+    "content": "confirm"
   },
   {
     "role": "assistant",
-    "content": "Doing well and ready to help! What can I do for you today?"
+    "content": "There's no pending payment to confirm. Would you like to start a new transfer?"
   },
   {
     "role": "user",
-    "content": "Who is my latest transaction mate to?"
+    "content": "What's my balance?"
   },
   {
     "role": "assistant",
-    "content": "Your latest transaction was a payment of five euros to the account with IBAN NL32BUNQ2025313705, described as \"Split dinner.\""
+    "content": "Eight hundred and forty-seven euros and thirty-five cents."
   },
   {
     "role": "user",
-    "content": "What is my current balance?"
+    "content": "What did I spend this week?"
   },
   {
     "role": "assistant",
-    "content": "Your current balance is three thousand six hundred nineteen euros and seventy-nine cents."
+    "content": "You spent three hundred and fifty-one euros and seventy cents this week — up one hundred and eighty-seven euros from last week. Your biggest expenses were Albert Heijn at one hundred and sixteen euros seventy cents, followed by Bol.com at sixty-seven euros and Uber at fifty-four euros twenty cents."
   },
   {
     "role": "user",
-    "content": "Yes, I want to make a payment to chase for 10 euros. Can you do this?"
+    "content": "Send 5 euros to Nikki for lunch"
   },
   {
     "role": "assistant",
-    "content": "I need a couple more details before I can set that up. What IBAN should I send the payment to, and what description would you like to include?"
+    "content": "Five euros to Nikki de Vries, November Lima nine one Bravo Uniform November Quebec zero nine eight seven six five four three two one, description: lunch. Say confirm to proceed, or cancel to stop."
   },
   {
     "role": "user",
-    "content": "It's Ibanez NL94FARTNITE67 and the description is please pay me bitch."
+    "content": "Transferred 20 euros to Nicky the Fish for pizza."
   },
   {
     "role": "assistant",
-    "content": "I want to make sure I have the right details before creating the draft. Just to confirm:\n\n- **Recipient:** Chase\n- **IBAN:** NL94FARTNITE67\n- **Amount:** ten euros\n- **Description:** please pay me bitch\n\nShall I create this draft payment?"
+    "content": "I'm not sure if that was a confirmation — say confirm to send the five euros to Nikki de Vries, or cancel to stop."
   },
   {
     "role": "user",
-    "content": "MBC 뉴스 이덕영입니다."
+    "content": "Yes, of course."
   },
   {
     "role": "assistant",
-    "content": "I didn't quite catch that — could you let me know if you'd like me to go ahead with the payment to Chase, or if you'd like to cancel it?"
+    "content": "Five euros to Nikki de Vries, November Lima nine one Bravo Uniform November Quebec zero nine eight seven six five four three two one, description: lunch. Say confirm to proceed, or cancel to stop."
   },
   {
     "role": "user",
-    "content": "Yes."
+    "content": "confirm"
   },
   {
     "role": "assistant",
-    "content": "Something went wrong — please try again in a moment."
+    "content": "Done — five euros sent to Nikki de Vries for lunch. Your new balance is eight hundred and forty-two euros and thirty-five cents."
   },
   {
     "role": "user",
-    "content": "Yes, make this. Pointer has her name set. Yeah, that's good. Mattel. I was going to say, maybe the person doesn't exist."
+    "content": "Can you tell me my last three chest exhales?"
   },
   {
     "role": "assistant",
-    "content": "It looks like that IBAN couldn't be validated — it may not be a real or recognised account. Could you double-check the IBAN for Chase?"
+    "content": "That's not something I can help with — I only handle your banking and finances. Is there anything else you'd like to do with your account?"
+  },
+  {
+    "role": "user",
+    "content": "can you tell me my last three transactions"
+  },
+  {
+    "role": "assistant",
+    "content": "You have three recent transactions. The first is thirty-two euros and forty cents to Albert Heijn for groceries. Want to hear the next one?"
+  },
+  {
+    "role": "user",
+    "content": "Yes, list them all."
+  },
+  {
+    "role": "assistant",
+    "content": "The second is five euros to Nikki de Vries for lunch. The third is sixty-seven euros to Bol.com for an online order."
   }
 ]

@@ -222,6 +222,25 @@
       animation: shake 0.4s ease;
     }
 
+    /* ── Payment Auth Overlay ── */
+    .pay-auth-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.9);
+      border-radius: 54px;
+      transition: opacity 0.4s ease;
+    }
+
+    .pay-auth-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
     /* ── Home bar ── */
     .home-bar {
       position: absolute;
@@ -333,6 +352,18 @@
         </div>
         <div class="lock-text">Tap your rhythm to unlock</div>
         <div class="lock-dots" id="lockDots">
+          <div class="lock-dot"></div>
+          <div class="lock-dot"></div>
+          <div class="lock-dot"></div>
+          <div class="lock-dot"></div>
+        </div>
+      </div>
+      <div class="pay-auth-overlay hidden" id="payAuthOverlay">
+        <div class="lock-icon" style="border-color: rgba(0,200,255,0.4);">
+          <svg viewBox="0 0 24 24" style="fill: rgba(0,200,255,0.6);"><path d="M12 17a2 2 0 002-2 2 2 0 00-2-2 2 2 0 00-2 2 2 2 0 002 2m6-9a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10a2 2 0 012-2h1V6a5 5 0 0110 0v2h1m-6-2v2h4V6a2 2 0 00-2-2 2 2 0 00-2 2z"/></svg>
+        </div>
+        <div class="lock-text" id="payAuthText">Tap your passcode to authorize</div>
+        <div class="lock-dots" id="payAuthDots">
           <div class="lock-dot"></div>
           <div class="lock-dot"></div>
           <div class="lock-dot"></div>
@@ -467,140 +498,85 @@ function stopThinkingEarcon() {
   }
 }
 
-// ── Audio Glance System ──
-const AudioGlance = (() => {
+// ── Tap Shortcuts ──
+const TapShortcuts = (() => {
+  const TAP_WINDOW = 400; // ms to wait before deciding tap count
   const BACKEND = 'http://localhost:8000';
-
-  function playTone(freq, duration, type = 'sine', volume = 0.2) {
-    const ac = EarconSystem.getCtx();
-    const now = ac.currentTime;
-    const osc = ac.createOscillator();
-    const gain = ac.createGain();
-    osc.connect(gain);
-    gain.connect(ac.destination);
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(volume, now);
-    gain.gain.linearRampToValueAtTime(0, now + duration);
-    osc.start(now);
-    osc.stop(now + duration);
-    return new Promise(r => setTimeout(r, duration * 1000 + 80));
-  }
-
-  async function playBalanceTone(level) {
-    if (level === 'good') {
-      await playTone(880, 0.4, 'sine', 0.25);     // bright high A5
-    } else if (level === 'okay') {
-      await playTone(523, 0.4, 'sine', 0.2);      // mid C5
-    } else {
-      await playTone(220, 0.6, 'sawtooth', 0.15); // deep warning A3
-    }
-  }
-
-  async function playSpendingPulse(level) {
-    const freq = 660;
-    if (level === 'light') {
-      await playTone(freq, 0.1, 'sine', 0.15);
-    } else if (level === 'moderate') {
-      await playTone(freq, 0.1, 'sine', 0.15);
-      await new Promise(r => setTimeout(r, 50));
-      await playTone(freq, 0.1, 'sine', 0.15);
-    } else {
-      for (let i = 0; i < 3; i++) {
-        await playTone(freq, 0.08, 'sine', 0.18);
-        if (i < 2) await new Promise(r => setTimeout(r, 40));
-      }
-    }
-  }
-
-  async function playIncomingDing(hasIncoming) {
-    if (hasIncoming) {
-      const ac = EarconSystem.getCtx();
-      const now = ac.currentTime;
-      const osc = ac.createOscillator();
-      const gain = ac.createGain();
-      osc.connect(gain);
-      gain.connect(ac.destination);
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(784, now);       // G5
-      osc.frequency.linearRampToValueAtTime(1047, now + 0.25); // C6
-      gain.gain.setValueAtTime(0.25, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
-      await new Promise(r => setTimeout(r, 400));
-    }
-  }
-
-  async function trigger() {
-    try {
-      const resp = await fetch(`${BACKEND}/glance`);
-      const data = await resp.json();
-      console.log('Glance data:', data);
-
-      A11yLog.log('ACTION', 'audio-glance', 'Triple-tap triggered quick audio status check');
-
-      // 1. Balance tone
-      const balanceLabel = {good: 'healthy (>€500)', okay: 'moderate (€100-500)', low: 'low (<€100)'}[data.balance_level];
-      A11yLog.log('EARCON', `balance: ${data.balance_level}`, `Balance is ${balanceLabel} — tone pitch indicates level`);
-      await playBalanceTone(data.balance_level);
-      await new Promise(r => setTimeout(r, 200));
-
-      // 2. Spending pulse
-      const spendLabel = {light: 'light (<€20)', moderate: 'moderate (€20-75)', heavy: 'heavy (>€75)'}[data.spending_level];
-      A11yLog.log('EARCON', `spending: ${data.spending_level}`, `Today's spending is ${spendLabel} — tap count indicates level`);
-      await playSpendingPulse(data.spending_level);
-      await new Promise(r => setTimeout(r, 200));
-
-      // 3. Incoming ding
-      if (data.has_incoming) {
-        A11yLog.log('EARCON', 'incoming: yes', 'Ascending chime — money received today');
-      } else {
-        A11yLog.log('STATE', 'incoming: none', 'No chime — no incoming payments today');
-      }
-      await playIncomingDing(data.has_incoming);
-
-      A11yLog.log('STATE', 'glance-complete', 'Audio glance complete — 3 sounds, ~2 seconds, no words needed');
-
-    } catch (e) {
-      A11yLog.log('ERROR', 'glance-failed', `Could not fetch status: ${e.message || e}`);
-    }
-  }
-
-  return { trigger };
-})();
-
-// ── Triple-Tap Detector ──
-const TripleTap = (() => {
-  const MAX_INTERVAL = 600;
-  let taps = [];
+  let tapCount = 0;
+  let tapTimer = null;
   let enabled = false;
+  let busy = false;
 
-  function enable() { enabled = true; console.log('TripleTap enabled'); }
+  function enable() { enabled = true; }
   function disable() { enabled = false; }
 
   function onTap() {
-    if (!enabled) { console.log('TripleTap: not enabled'); return false; }
-    const now = performance.now();
-    // Discard old taps
-    taps = taps.filter(t => now - t < 1500);
-    taps.push(now);
-    console.log('TripleTap: tap count =', taps.length);
-    if (taps.length >= 3) {
-      const recent = taps.slice(-3);
-      const gap1 = recent[1] - recent[0];
-      const gap2 = recent[2] - recent[1];
-      console.log('TripleTap: gaps =', gap1, gap2);
-      if (gap1 < MAX_INTERVAL && gap2 < MAX_INTERVAL) {
-        taps = [];
-        console.log('TripleTap: TRIGGERED!');
-        return true;
-      }
+    if (!enabled || busy) return false;
+    tapCount++;
+    EarconSystem.play('tap');
+    clearTimeout(tapTimer);
+    if (tapCount >= 2) {
+      fire(2);
+      return true;
     }
-    return false;
+    tapTimer = setTimeout(() => fire(tapCount), TAP_WINDOW);
+    return true;
   }
 
-  return { onTap, enable, disable };
+  async function fire(count) {
+    tapCount = 0;
+    tapTimer = null;
+    busy = true;
+    const shortcuts = {
+      1: { prompt: 'Tell me just the balance amount, nothing else. Be extremely brief, just the number in words.', label: 'balance' },
+      2: { prompt: 'Tell me just the last transaction: amount and who. Nothing else, be extremely brief.', label: 'last transaction' },
+    };
+    const shortcut = shortcuts[count];
+    if (!shortcut) { busy = false; return; }
+
+    A11yLog.log('ACTION', `tap-shortcut-${count}`, `${count}-tap → quick ${shortcut.label}`);
+
+    try {
+      setVoiceState('thinking');
+      thinkingOsc = EarconSystem.play('thinking');
+
+      const form = new FormData();
+      form.append('message', shortcut.prompt);
+      const resp = await fetch(`${BACKEND}/text`, { method: 'POST', body: form });
+      const data = await resp.json();
+      stopThinkingEarcon();
+
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        for (const tc of data.tool_calls) {
+          const argsStr = Object.keys(tc.input || {}).length
+            ? `(${Object.entries(tc.input).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(', ')})`
+            : '()';
+          A11yLog.log('ACTION', `tool: ${tc.name}`, argsStr);
+        }
+      }
+      A11yLog.logBackendEvents(data.accessibility_events);
+
+      if (data.reply_text) {
+        A11yLog.log('SPEECH', `quick-${shortcut.label}`, `"${data.reply_text}"`);
+        setVoiceState('speaking');
+        const audio = await speakText(data.reply_text);
+        if (audio) {
+          await new Promise(resolve => { audio.onended = resolve; });
+        } else {
+          await new Promise(r => setTimeout(r, Math.max(800, data.reply_text.length * 50)));
+        }
+      }
+    } catch (e) {
+      stopThinkingEarcon();
+      A11yLog.log('ERROR', 'tap-shortcut-failed', e.message || String(e));
+      EarconSystem.play('error');
+    } finally {
+      busy = false;
+      setVoiceState('idle');
+    }
+  }
+
+  return { onTap, enable, disable, TAP_WINDOW };
 })();
   </script>
 
@@ -653,9 +629,17 @@ const A11yLog = (() => {
 
   // ── TTS ──
   let ttsAudio = null;
+  let speechSpeed = 1.0; // 0.7 = slow, 1.0 = normal, 1.3 = fast
+  let lastSpokenText = '';
+
+  function setSpeechSpeed(speed) {
+    speechSpeed = Math.max(0.5, Math.min(1.5, speed));
+    A11yLog.log('STATE', 'speed-change', `Speech speed set to ${speechSpeed.toFixed(1)}x`);
+  }
 
   async function speakText(text) {
     if (!text || !elevenLabsApiKey) return null;
+    lastSpokenText = text;
     try {
       const resp = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
@@ -674,6 +658,7 @@ const A11yLog = (() => {
       const url = URL.createObjectURL(blob);
       if (ttsAudio) { try { ttsAudio.pause(); } catch {} }
       ttsAudio = new Audio(url);
+      ttsAudio.playbackRate = speechSpeed;
       ttsAudio.onended = () => { URL.revokeObjectURL(url); };
       await ttsAudio.play();
       return ttsAudio;
@@ -726,6 +711,9 @@ const A11yLog = (() => {
       }
 
       A11yLog.logBackendEvents(data.accessibility_events);
+      const hadPendingTour = hasPendingDraft;
+      hasPendingDraft = !!data.pending;
+      if (hasPendingDraft && !hadPendingTour) paymentFlow = 'awaitingConfirmation';
 
       if (data.reply_text) {
         A11yLog.log('AUDIO', 'tts-playback', 'Lynn speaking response aloud');
@@ -744,33 +732,9 @@ const A11yLog = (() => {
 
     await new Promise(r => setTimeout(r, 600));
 
-    await waitForTts("Hi, I'm Lynn, your bunq accessibility assistant. Let me show you what I can do.");
+    await waitForTts("Hi, I'm Lynn, your bunq accessibility assistant. What can I do for you?");
 
-    // Start guided tour
-    tourRunning = true;
-    await new Promise(r => setTimeout(r, 800));
-
-    // Step 1: Balance check
-    A11yLog.log('STATE', 'tour-step', 'Demo: checking account balance');
-    await sendTextAndSpeak("What's my balance?");
-    await new Promise(r => setTimeout(r, 1000));
-
-    // Step 2: Spending overview
-    A11yLog.log('STATE', 'tour-step', 'Demo: reviewing recent spending');
-    await sendTextAndSpeak("What did I spend this week?");
-    await new Promise(r => setTimeout(r, 1000));
-
-    // Step 3: Send money (draft)
-    A11yLog.log('STATE', 'tour-step', 'Demo: voice payment with safety readback');
-    await sendTextAndSpeak("Send 5 euros to Nikki for lunch");
-    await new Promise(r => setTimeout(r, 1000));
-
-    // Wrap up
-    await waitForTts("And that's just a few things I can help with. Hold anywhere to talk, or triple-tap for a quick audio status check.");
-    A11yLog.log('STATE', 'tour-complete', 'Guided tour finished — user can now interact freely');
-    A11yLog.log('ACTION', 'feature-hint', 'Triple-tap = audio glance (balance + spending + incoming in ~2 seconds, no words)');
-
-    TripleTap.enable();
+    TapShortcuts.enable();
     tourRunning = false;
     setVoiceState('idle');
   }
@@ -880,25 +844,156 @@ const A11yLog = (() => {
   }
 
   // ── Network ──
+  let hasPendingDraft = false;
+  let paymentFlow = 'none'; // none → awaitingConfirmation → awaitingPasscode → (done/awaitingRetry)
+
   async function sendAudio() {
     const blob = new Blob(chunks, { type: 'audio/webm' });
     const form = new FormData();
     form.append('audio', blob, 'recording.webm');
     abortCtrl = new AbortController();
     try {
-      const resp = await fetch(`${BACKEND}/voice`, {
+      // Step 1: Transcribe only
+      const sttResp = await fetch(`${BACKEND}/transcribe`, {
         method: 'POST',
         body: form,
         signal: abortCtrl.signal,
       });
+      const sttData = await sttResp.json();
+      const userText = (sttData.text || '').trim();
+      console.log('Transcribed:', userText);
+
+      if (!userText) {
+        stopThinkingEarcon();
+        setVoiceState('idle');
+        return;
+      }
+
+      A11yLog.log('AUDIO', 'user-speech', `User said: "${userText}"`);
+
+      // Handle interactive voice commands client-side
+      const lower = userText.toLowerCase();
+      if (/^(slower|slow down|speak slower)\.?$/.test(lower)) {
+        setSpeechSpeed(speechSpeed - 0.15);
+        stopThinkingEarcon();
+        setVoiceState('speaking');
+        const audio = await speakText('Slower. Got it.');
+        if (audio) audio.onended = () => setVoiceState('idle');
+        else setVoiceState('idle');
+        return;
+      }
+      if (/^(faster|speed up|speak faster)\.?$/.test(lower)) {
+        setSpeechSpeed(speechSpeed + 0.15);
+        stopThinkingEarcon();
+        setVoiceState('speaking');
+        const audio = await speakText('Faster. Got it.');
+        if (audio) audio.onended = () => setVoiceState('idle');
+        else setVoiceState('idle');
+        return;
+      }
+      if (/^(repeat|say that again|again)\.?$/.test(lower) && lastSpokenText) {
+        stopThinkingEarcon();
+        A11yLog.log('ACTION', 'repeat', 'Repeating last response');
+        setVoiceState('speaking');
+        const audio = await speakText(lastSpokenText);
+        if (audio) audio.onended = () => setVoiceState('idle');
+        else setVoiceState('idle');
+        return;
+      }
+
+      // ── Payment flow state machine ──
+      if (paymentFlow !== 'none') {
+        const isCancel = /\b(cancel|stop|never\s*mind|don't|abort)\b/i.test(lower);
+        const isYes = /\b(yes|confirm|do it|go ahead|send it|sure|okay|yep|yeah)\b/i.test(lower);
+        const isNo = /\b(no|nope|nah)\b/i.test(lower);
+        stopThinkingEarcon();
+
+        if (isCancel) {
+          paymentFlow = 'none';
+          hasPendingDraft = false;
+          A11yLog.log('ACTION', 'payment-cancelled', 'User cancelled the payment');
+          setVoiceState('thinking');
+          thinkingOsc = EarconSystem.play('thinking');
+          await sendTextToLLM('cancel');
+          return;
+        }
+
+        if (paymentFlow === 'awaitingConfirmation') {
+          if (isYes) {
+            paymentFlow = 'awaitingPasscode';
+            A11yLog.log('ACTION', 'pay-auth-required', 'User confirmed — passcode required to authorize');
+            setVoiceState('speaking');
+            await waitForTts('Enter your passcode to authorize.');
+            setVoiceState('idle');
+            requestPaymentAuth();
+          } else {
+            setVoiceState('speaking');
+            await waitForTts('Say confirm to proceed with the payment, or cancel to stop.');
+            setVoiceState('idle');
+          }
+          return;
+        }
+
+        if (paymentFlow === 'awaitingRetry') {
+          if (isYes) {
+            paymentFlow = 'awaitingPasscode';
+            A11yLog.log('STATE', 'pay-auth-retry', 'User wants to retry passcode');
+            setVoiceState('speaking');
+            await waitForTts('Enter your passcode.');
+            setVoiceState('idle');
+            requestPaymentAuth();
+          } else if (isNo) {
+            paymentFlow = 'none';
+            hasPendingDraft = false;
+            A11yLog.log('ACTION', 'payment-cancelled', 'User declined retry — payment cancelled');
+            setVoiceState('thinking');
+            thinkingOsc = EarconSystem.play('thinking');
+            await sendTextToLLM('cancel');
+          } else {
+            setVoiceState('speaking');
+            await waitForTts('Want to try the passcode again? Say yes or no.');
+            setVoiceState('idle');
+          }
+          return;
+        }
+
+        // awaitingPasscode — shouldn't reach here (taps handle it), but just in case
+        if (paymentFlow === 'awaitingPasscode') {
+          setVoiceState('speaking');
+          await waitForTts('Tap your passcode on the screen to authorize.');
+          setVoiceState('idle');
+          return;
+        }
+      }
+
+      // Step 2: Send text to LLM
+      await sendTextToLLM(userText);
+    } catch (e) {
+      stopThinkingEarcon();
+      if (e.name === 'AbortError') return;
+      EarconSystem.play('error');
+      A11yLog.log('ERROR', 'network', 'Could not reach backend');
+      setVoiceState('idle');
+    } finally {
+      abortCtrl = null;
+    }
+  }
+
+  async function sendTextToLLM(text) {
+    const form = new FormData();
+    form.append('message', text);
+    try {
+      const resp = await fetch(`${BACKEND}/text`, { method: 'POST', body: form });
       const data = await resp.json();
       console.log('Backend response:', data);
       stopThinkingEarcon();
-      if (appState !== 'thinking') return;
 
-      // Log what the user said
-      if (data.user_text) {
-        A11yLog.log('AUDIO', 'user-speech', `User said: "${data.user_text}"`);
+      // Track pending draft state — enter payment flow when draft is created
+      const hadPending = hasPendingDraft;
+      hasPendingDraft = !!data.pending;
+      if (hasPendingDraft && !hadPending) {
+        paymentFlow = 'awaitingConfirmation';
+        A11yLog.log('STATE', 'payment-flow', 'Draft created — entering payment confirmation flow');
       }
 
       // Log tool calls
@@ -922,7 +1017,9 @@ const A11yLog = (() => {
         A11yLog.log('EARCON', 'error', 'Audio signals something went wrong');
       } else if (hasConfirm) {
         EarconSystem.play('success');
-        A11yLog.log('EARCON', 'success', 'Audio confirms action completed');
+        A11yLog.log('EARCON', 'success', 'Audio confirms payment completed');
+        hasPendingDraft = false;
+        paymentFlow = 'none';
       }
 
       // Speak the reply
@@ -941,12 +1038,9 @@ const A11yLog = (() => {
       }
     } catch (e) {
       stopThinkingEarcon();
-      if (e.name === 'AbortError') return;
       EarconSystem.play('error');
       A11yLog.log('ERROR', 'network', 'Could not reach backend');
       setVoiceState('idle');
-    } finally {
-      abortCtrl = null;
     }
   }
 
@@ -1032,7 +1126,7 @@ const A11yLog = (() => {
     lockOverlay.classList.add('hidden');
     locked = false;
     authBusy = false;
-    TripleTap.enable();
+    TapShortcuts.enable();
 
     // Now start the normal transition flow
     await new Promise(r => setTimeout(r, 300));
@@ -1067,6 +1161,94 @@ const A11yLog = (() => {
     });
   }
 
+  // ── Payment Auth (reuses rhythm pattern for payment confirmation) ──
+  const payAuthOverlay = document.getElementById('payAuthOverlay');
+  const payAuthDots = document.getElementById('payAuthDots');
+  const payDots = payAuthDots.querySelectorAll('.lock-dot');
+
+  let payAuthActive = false;
+  let payAuthBusy = false;
+  let payTapTimes = [];
+  let payEvalTimer = null;
+
+  function requestPaymentAuth() {
+    payAuthActive = true;
+    payAuthBusy = false;
+    payTapTimes = [];
+    payDots.forEach(d => d.classList.remove('active', 'error', 'success'));
+    payAuthDots.classList.remove('shake');
+    payAuthOverlay.classList.remove('hidden');
+    A11yLog.log('STATE', 'pay-auth', 'Payment passcode overlay shown — tap rhythm to authorize');
+  }
+
+  function onPayAuthTap() {
+    if (payAuthBusy) return;
+    const now = performance.now();
+    payTapTimes.push(now);
+    const idx = payTapTimes.length - 1;
+    if (idx < payDots.length) payDots[idx].classList.add('active');
+    EarconSystem.play('tap');
+    clearTimeout(payEvalTimer);
+    payEvalTimer = setTimeout(() => evaluatePayAuth(), EVAL_DELAY);
+  }
+
+  function evaluatePayAuth() {
+    if (payTapTimes.length !== EXPECTED_TAPS) {
+      payAuthFailed();
+      return;
+    }
+    const intervals = [];
+    for (let i = 1; i < payTapTimes.length; i++) {
+      intervals.push(payTapTimes[i] - payTapTimes[i - 1]);
+    }
+    const quick1 = intervals[0], pause = intervals[1], quick2 = intervals[2];
+    const avgQuick = (quick1 + quick2) / 2;
+
+    if (pause > avgQuick * PAUSE_RATIO && quick1 < 800 && quick2 < 800) {
+      payAuthSucceeded();
+    } else {
+      payAuthFailed();
+    }
+  }
+
+  async function payAuthSucceeded() {
+    payAuthBusy = true;
+    payDots.forEach(d => { d.classList.remove('active'); d.classList.add('success'); });
+    EarconSystem.play('unlock');
+    A11yLog.log('ACTION', 'pay-auth-success', 'Passcode matched — authorizing payment');
+
+    await new Promise(r => setTimeout(r, 500));
+    payAuthOverlay.classList.add('hidden');
+    payAuthActive = false;
+    payAuthBusy = false;
+    paymentFlow = 'none';
+
+    // Now actually confirm the payment
+    setVoiceState('thinking');
+    thinkingOsc = EarconSystem.play('thinking');
+    await sendTextToLLM('confirm');
+  }
+
+  async function payAuthFailed() {
+    payAuthBusy = true;
+    payDots.forEach(d => { d.classList.remove('active'); d.classList.add('error'); });
+    payAuthDots.classList.add('shake');
+    EarconSystem.play('error');
+    A11yLog.log('ERROR', 'pay-auth-failed', 'Passcode did not match');
+
+    await new Promise(r => setTimeout(r, 400));
+    payAuthOverlay.classList.add('hidden');
+    payAuthActive = false;
+    payAuthBusy = false;
+
+    // Ask if they want to retry instead of auto-cancelling
+    paymentFlow = 'awaitingRetry';
+    setVoiceState('speaking');
+    await waitForTts("That didn't match. Want to try again?");
+    A11yLog.log('STATE', 'pay-auth-retry-prompt', 'Asking user if they want to retry passcode');
+    setVoiceState('idle');
+  }
+
   // First interaction unlocks AudioContext and announces auth
   let audioUnlocked = false;
 
@@ -1092,31 +1274,31 @@ const A11yLog = (() => {
       return;
     }
 
-    // Voice agent interaction (after activation)
-    if (tourRunning) return;
-
-    // Triple-tap = audio glance
-    if (TripleTap.onTap()) {
-      clearTimeout(holdTimer);
-      holdTimer = null;
-      AudioGlance.trigger();
+    // Payment authorization rhythm
+    if (payAuthActive) {
+      onPayAuthTap();
       return;
     }
 
-    // Delay recording start so triple-tap can be detected
+    // Voice agent interaction (after activation)
+    if (tourRunning) return;
+
+    pressStartedAt = performance.now();
+
+    // Delay recording start so tap shortcuts can be detected
     if (appState === 'idle') {
       clearTimeout(holdTimer);
       holdTimer = setTimeout(async () => {
         holdTimer = null;
         if (appState === 'idle') await startRecording();
-      }, 420);
+      }, TapShortcuts.TAP_WINDOW || 420);
     } else if (appState === 'thinking' || appState === 'speaking') {
       interrupt();
       clearTimeout(holdTimer);
       holdTimer = setTimeout(async () => {
         holdTimer = null;
         await startRecording();
-      }, 420);
+      }, TapShortcuts.TAP_WINDOW || 420);
     }
   });
 
@@ -1125,9 +1307,12 @@ const A11yLog = (() => {
     if (activated && appState === 'listening') {
       endRecordingAndSend();
     } else if (holdTimer) {
-      // User tapped quickly (not held) — cancel pending recording
+      // Quick tap — cancel pending recording, route to tap shortcuts
       clearTimeout(holdTimer);
       holdTimer = null;
+      if (activated && appState === 'idle') {
+        TapShortcuts.onTap();
+      }
     }
   }
   screen.addEventListener('pointerup', onRelease);

@@ -26,6 +26,7 @@ from backend.tools.bunqme import (
 )
 from backend.tools.notifications import list_webhooks, set_webhooks, clear_webhooks
 from backend.tools.events import get_events, get_user_profile
+from backend.tools.financial_context import financial_context
 
 # =============================================================================
 # Tool schemas  (what Claude sees — drives tool selection)
@@ -389,6 +390,45 @@ SCHEMAS: list[dict[str, Any]] = [
             "required": [],
         },
     },
+
+    # ── financial reasoning ──────────────────────────────────────────────
+    {
+        "name": "financial_context",
+        "description": (
+            "Get a structured financial snapshot for answering judgment questions. "
+            "Use this when the user asks something that requires reasoning over multiple "
+            "data sources — affordability, spending patterns, forecasts, anomalies, or savings health. "
+            "Examples: 'Can I afford X?', 'Where's my money going?', 'Anything weird this month?', "
+            "'Will I make it to payday?', 'Am I saving enough?', 'How am I doing financially?'"
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "focus": {
+                    "type": "string",
+                    "enum": [
+                        "affordability", "spending_breakdown", "cashflow_forecast",
+                        "anomalies", "savings_health", "general",
+                    ],
+                    "description": (
+                        "affordability: can I afford X / is it safe to spend / discretionary buffer. "
+                        "spending_breakdown: where money goes, top merchants, week-over-week trend. "
+                        "cashflow_forecast: projected balance over time, danger dates. "
+                        "anomalies: unusual transactions, new merchants, duplicate charges. "
+                        "savings_health: savings rate, contributions, savings vs income. "
+                        "general: compact overview of all the above."
+                    ),
+                },
+                "horizon_days": {
+                    "type": "integer",
+                    "minimum": 7,
+                    "maximum": 90,
+                    "description": "How far ahead to look (default 30).",
+                },
+            },
+            "required": ["focus"],
+        },
+    },
 ]
 
 # =============================================================================
@@ -450,6 +490,8 @@ def dispatch(client: BunqClient, store: SessionStore, sid: str, name: str, args:
         "clear_webhooks":            lambda: clear_webhooks(client, store, sid),
         # events
         "get_events":                lambda: get_events(client, store, sid, **args),
+        # financial reasoning
+        "financial_context":         lambda: financial_context(client, store, sid, **args),
     }
     if name not in fns:
         raise KeyError(f"Unknown tool: {name!r}")
