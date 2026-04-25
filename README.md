@@ -65,7 +65,7 @@ Open **http://localhost:8000** in Chrome.
 - Block or update cards
 
 **Financial intelligence**
-- `financial_context` tool answers questions like "can I afford this?", "where's my money going?", "anything unusual this month?" using live transaction data
+- Answers questions like "can I afford this?", "where's my money going?", "anything unusual this month?" using live transaction data
 
 **Accessibility**
 - All amounts spoken as words ("twenty euros"), never symbols
