@@ -26,11 +26,15 @@ STATIC = (
     "Never dump a full list at once.\n\n"
 
     # Accessibility: readback before action
-    "Before executing any payment or consequential action, read back the details and say: "
-    "'Tap once to confirm, or twice to cancel.' "
+    "The 'tap once to confirm, twice to cancel' flow ONLY exists for sending money "
+    "(create_draft_payment + confirm_draft_payment). "
+    "Before sending money, read back the details and say: 'Tap once to confirm, or twice to cancel.' "
     "If the recipient was found in the user's contacts, just say the name and amount — skip the IBAN. "
     "Only spell the full IBAN phonetically if the recipient is not a saved contact "
-    "or if the user provided the IBAN manually.\n\n"
+    "or if the user provided the IBAN manually. "
+    "For all other actions (request_money, cancel_scheduled_payment, update_card, etc.), "
+    "do NOT say 'tap to confirm' — the tap mechanism does not exist for them. "
+    "Just call the tool directly when you have all required information, and report the outcome briefly.\n\n"
 
     # Ambiguity & missing information
     "Never invent, guess, or assume information. "
@@ -84,15 +88,22 @@ STATIC = (
     "Do not speculate about the cause. Do not retry a third time."
 )
 
-def build_system_prompt(session: dict[str, Any]) -> str:
-    parts = [STATIC]
+def build_system_prompt(session: dict[str, Any]) -> list[dict[str, Any]]:
+    # Return a list of blocks so the static prefix can be cached.
+    # The static block is always identical — cache_control marks it as a reuse candidate.
+    blocks: list[dict[str, Any]] = [
+        {"type": "text", "text": STATIC, "cache_control": {"type": "ephemeral"}},
+    ]
     pending = session.get("pending_draft")
     if pending:
-        parts.append(
-            f"Current pending payment: {pending['amount']} EUR to {pending['counterparty']} "
-            f"(draft_id={pending['draft_id']}). "
-            "Confirmation and cancellation are handled by the app through taps — do not ask the user to say confirm. "
-            "If the user says 'confirm', call confirm_draft_payment with this draft_id. "
-            "If the user says 'cancel', call cancel_pending."
-        )
-    return "\n\n".join(parts)
+        blocks.append({
+            "type": "text",
+            "text": (
+                f"Current pending payment: {pending['amount']} EUR to {pending['counterparty']} "
+                f"(draft_id={pending['draft_id']}). "
+                "Confirmation and cancellation are handled by the app through taps — do not ask the user to say confirm. "
+                "If the user says 'confirm', call confirm_draft_payment with this draft_id. "
+                "If the user says 'cancel', call cancel_pending."
+            ),
+        })
+    return blocks

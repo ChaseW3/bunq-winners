@@ -2,12 +2,12 @@
 Dev server for bunq Voice: STT + LLM + bunq tool calling.
 
 Usage:
-    uv run python scripts/serve_test.py
+    uv run python main.py
 Then open http://localhost:8000 in Chrome.
 """
 import io, os, sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -23,6 +23,8 @@ from backend import memory
 from backend.session.store import SessionStore
 from backend.orchestrator.anthropic_adapter import AnthropicAdapter
 from backend.orchestrator.llm import run_llm_turn
+from backend.orchestrator.prompts import build_system_prompt
+from backend.tools.registry import tool_schemas
 
 # --- bootstrap ---
 # Set BUNQ_FAKE=1 in the environment to run against FakeBunqClient (no bunq key needed).
@@ -30,7 +32,7 @@ USE_FAKE = os.environ.get("BUNQ_FAKE", "").lower() in {"1", "true", "yes"}
 if USE_FAKE:
     from backend.tests.fakes import FakeBunqClient
     bunq = FakeBunqClient()
-    print("[serve_test] Using FakeBunqClient (BUNQ_FAKE=1).")
+    print("[main] Using FakeBunqClient (BUNQ_FAKE=1).")
 else:
     from backend.bunq_client.bootstrap import ensure_context
     from backend.bunq_client.client import RealBunqClient
@@ -40,12 +42,25 @@ store = SessionStore()
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 anthropic_client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 llm = AnthropicAdapter(anthropic_client)
-LLM_MODEL = os.environ.get("LLM_MODEL", "claude-sonnet-4-5")
+LLM_MODEL = os.environ.get("LLM_MODEL", "claude-sonnet-4-6")
 
 # Single shared session for the dev server
 SHARED_SID = store.create(bunq_user_id=0, primary_account_id=bunq.primary_account_id())
 for msg in memory.load():
     store.append_history(SHARED_SID, msg)
+
+# Warm the prompt cache at startup so the first real request gets a cache hit.
+try:
+    llm.messages_create(
+        model=LLM_MODEL,
+        system=build_system_prompt({"pending_draft": None}),
+        tools=tool_schemas(),
+        messages=[{"role": "user", "content": "."}],
+        max_tokens=1,
+    )
+    print("[main] Prompt cache warmed.")
+except Exception as e:
+    print(f"[main] Cache warm-up failed (non-fatal): {e}")
 
 # --- app ---
 app = FastAPI()

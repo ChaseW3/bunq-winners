@@ -534,8 +534,14 @@ const TapShortcuts = (() => {
   async function fire(count) {
     tapCount = 0;
     tapTimer = null;
+    // By the time this timer fires, a payment confirmation may have started.
+    // If so, drop the shortcut — the tap belongs to the confirmation flow.
+    if (paymentFlow !== 'none') {
+      busy = false;
+      return;
+    }
     // Abort any other in-flight action (voice flow / TTS / thinking earcon).
-    if (typeof window.interruptCurrentAction === 'function') window.interruptCurrentAction();
+    window.interruptCurrentAction();
     const myAbort = new AbortController();
     currentAbort = myAbort;
     busy = true;
@@ -707,9 +713,8 @@ const A11yLog = (() => {
     const audio = await speakText(text);
     if (audio) {
       await new Promise(resolve => { audio.onended = resolve; });
-    } else {
-      await new Promise(r => setTimeout(r, Math.max(1500, text.length * 55)));
     }
+    // No TTS key — don't block the UI with a fake delay.
   }
 
   async function sendTextAndSpeak(userMessage) {
@@ -1063,6 +1068,9 @@ const A11yLog = (() => {
   }
 
   function interrupt() {
+    // Don't abort a request that is in the process of creating a draft payment.
+    // Aborting mid-flight would leave the user thinking a payment is pending when it isn't.
+    if (paymentFlow !== 'none') { stopTts(); return; }
     if (abortCtrl) { try { abortCtrl.abort(); } catch {} abortCtrl = null; }
     stopTts();
     stopThinkingEarcon();

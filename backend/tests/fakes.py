@@ -16,6 +16,8 @@ class FakeBunqClient:
             Contact(id="c2", name="Nikki de Vries", iban="NL91BUNQ0987654321"),
             Contact(id="c3", name="Jan Bakker", iban="NL00BUNQ0000000003"),
             Contact(id="c4", name="Finn Bunq", iban="NL00BUNQ0000000002"),
+            Contact(id="c5", name="Sophie Wang", iban="NL73BUNQ0456789012"),
+            Contact(id="c6", name="Chase Wang", iban="NL58BUNQ0345678901"),
         ]
         self._payments = [
             PaymentSummary(date="2026-04-25", counterparty="Albert Heijn",  amount=Decimal("-32.40"), description="groceries"),

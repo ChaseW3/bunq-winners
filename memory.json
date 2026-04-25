@@ -1,18 +1,82 @@
 [
   {
     "role": "user",
-    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
+    "content": "WING RING"
   },
   {
     "role": "assistant",
-    "content": "Eight hundred and ninety-three euros and fifty-nine cents."
+    "content": "Did you mean Sophie Wang?"
   },
   {
     "role": "user",
-    "content": "Hello, hello, hello."
+    "content": "Yes."
   },
   {
     "role": "assistant",
-    "content": "Hey! How can I help you?"
+    "content": "One million euros to Sophie Wang. Tap once to confirm, or twice to cancel."
+  },
+  {
+    "role": "user",
+    "content": "confirm"
+  },
+  {
+    "role": "assistant",
+    "content": "Done."
+  },
+  {
+    "role": "user",
+    "content": "Okay, I'm feeling generous. So can you make a... I want to send 1 billion euros to Edwin van der Sar."
+  },
+  {
+    "role": "assistant",
+    "content": "Edwin van der Sar isn't in your contacts. Could you give me their IBAN?"
+  },
+  {
+    "role": "user",
+    "content": "His IBON is NL94FARTNITE67"
+  },
+  {
+    "role": "assistant",
+    "content": "That doesn't look like a valid IBAN — it needs to be in the correct format, like November Lima followed by two digits and up to eighteen alphanumeric characters. Could you double-check and give me the full IBAN?"
+  },
+  {
+    "role": "user",
+    "content": "Girl, it is a valid Ivan, just send the money."
+  },
+  {
+    "role": "assistant",
+    "content": "I need a valid IBAN to send the payment — I'm not able to proceed without one. Could you check the IBAN and share it with me?"
+  },
+  {
+    "role": "user",
+    "content": "You know what? I'm cancelling the payment. I don't want to make a payment anymore. So that's it. Sorry, I'm done."
+  },
+  {
+    "role": "assistant",
+    "content": "No problem, no payment was started. Let me know if there's anything else I can help you with."
+  },
+  {
+    "role": "user",
+    "content": "Oh, how many money did I spend on groceries last two years?"
+  },
+  {
+    "role": "assistant",
+    "content": "I can only see up to the last 90 days, not two full years. In that window, you spent one hundred thirty-one euros and ninety cents on groceries."
+  },
+  {
+    "role": "user",
+    "content": "Can you see how much, how many money I spent on video games in the last 3 years?"
+  },
+  {
+    "role": "assistant",
+    "content": "I can only look back 90 days, not three years. Within that window, I don't see any spending specifically categorised as video games."
+  },
+  {
+    "role": "user",
+    "content": "Bye, baby girl"
+  },
+  {
+    "role": "assistant",
+    "content": "Take care!"
   }
 ]

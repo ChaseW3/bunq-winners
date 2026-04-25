@@ -278,7 +278,13 @@ SCHEMAS: list[dict[str, Any]] = [
     # ── contacts ──────────────────────────────────────────────────────────
     {
         "name": "find_contact",
-        "description": "Fuzzy-match a person in the user's contacts by name. Returns 0, 1, or many matches.",
+        "description": (
+            "Look up a contact by name. "
+            "Returns {match: 'exact', name, iban} when one contact is found — proceed directly with that iban, no need to confirm. "
+            "Returns {match: 'fuzzy', name, iban} when no exact match was found but one contact is similar (likely a speech-to-text mistake) — ask the user 'Did you mean <name>?' and only proceed after they confirm. "
+            "Returns {match: 'multiple', contacts: [...]} when several match — read the names aloud and ask the user which one. "
+            "Returns {match: 'none'} when nobody is found — ask the user for an IBAN."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {"query": {"type": "string"}},
@@ -436,7 +442,11 @@ SCHEMAS: list[dict[str, Any]] = [
 # =============================================================================
 
 def tool_schemas() -> list[dict[str, Any]]:
-    return SCHEMAS
+    # Cache all tool schemas — they never change between turns.
+    # Render order is tools → system → messages, so this prefix is reused every call.
+    schemas = list(SCHEMAS)
+    schemas[-1] = {**schemas[-1], "cache_control": {"type": "ephemeral"}}
+    return schemas
 
 
 def dispatch(client: BunqClient, store: SessionStore, sid: str, name: str, args: dict[str, Any]) -> Any:

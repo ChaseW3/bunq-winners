@@ -67,21 +67,22 @@ def run_llm_turn(
     sid: str,
     *,
     user_text: str,
-    model: str = "claude-sonnet-4-5",
+    model: str = "claude-sonnet-4-6",
 ) -> dict[str, Any]:
     """Returns {'reply': str, 'tool_calls': [{name, input, result, is_error}]}."""
     session = store.get(sid)
     system = build_system_prompt(session)
     messages: list[dict[str, Any]] = list(session["history"]) + [{"role": "user", "content": user_text}]
     tool_calls: list[dict[str, Any]] = []
+    cached_tools = tool_schemas()
 
     for _ in range(MAX_ITERATIONS):
         resp = llm.messages_create(
             model=model,
             system=system,
-            tools=tool_schemas(),
+            tools=cached_tools,
             messages=messages,
-            max_tokens=1024,
+            max_tokens=256,
         )
         blocks = resp["content"]
         stop = resp.get("stop_reason")
@@ -114,6 +115,17 @@ def run_llm_turn(
                     "is_error": is_error,
                 })
             messages.append({"role": "user", "content": tool_results})
+
+            # Hard stop after a successful confirm_draft_payment so Claude can't
+            # re-trigger the original "send to X" intent and create a duplicate draft.
+            iteration_tools = tool_calls[-len(tool_results):]
+            if any(tc["name"] == "confirm_draft_payment" and not tc["is_error"] for tc in iteration_tools):
+                reply = "Done."
+                store.append_history(sid, {"role": "user", "content": user_text})
+                store.append_history(sid, {"role": "assistant", "content": reply})
+                a11y_events = derive_accessibility_events(reply, tool_calls)
+                return {"reply": reply, "tool_calls": tool_calls, "accessibility_events": a11y_events}
+
             system = build_system_prompt(store.get(sid))
             continue
 
