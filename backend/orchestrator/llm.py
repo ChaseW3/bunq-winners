@@ -36,7 +36,7 @@ def run_llm_turn(
             system=system,
             tools=tool_schemas(),
             messages=messages,
-            max_tokens=512,
+            max_tokens=1024,
         )
         blocks = resp["content"]
         stop = resp.get("stop_reason")

@@ -19,15 +19,22 @@ import uvicorn
 from openai import OpenAI
 from anthropic import Anthropic
 
-from backend.bunq_client.bootstrap import ensure_context
-from backend.bunq_client.client import RealBunqClient
 from backend.session.store import SessionStore
 from backend.orchestrator.anthropic_adapter import AnthropicAdapter
 from backend.orchestrator.llm import run_llm_turn
 
 # --- bootstrap ---
-ensure_context(os.environ["BUNQ_API_KEY"], os.environ.get("BUNQ_ENVIRONMENT", "SANDBOX"))
-bunq = RealBunqClient()
+# Set BUNQ_FAKE=1 in the environment to run against FakeBunqClient (no bunq key needed).
+USE_FAKE = os.environ.get("BUNQ_FAKE", "").lower() in {"1", "true", "yes"}
+if USE_FAKE:
+    from backend.tests.fakes import FakeBunqClient
+    bunq = FakeBunqClient()
+    print("[serve_test] Using FakeBunqClient (BUNQ_FAKE=1).")
+else:
+    from backend.bunq_client.bootstrap import ensure_context
+    from backend.bunq_client.client import RealBunqClient
+    ensure_context(os.environ["BUNQ_API_KEY"], os.environ.get("BUNQ_ENVIRONMENT", "SANDBOX"))
+    bunq = RealBunqClient()
 store = SessionStore()
 openai_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 anthropic_client = Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
