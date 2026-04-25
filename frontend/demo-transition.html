@@ -150,6 +150,92 @@
       border-radius: 3px;
       z-index: 10;
     }
+
+    /* ── Accessibility Log Panel ── */
+    .a11y-log {
+      position: fixed;
+      top: 40px;
+      right: 40px;
+      bottom: 40px;
+      width: 38vw;
+      background: #0a0a0a;
+      border: 1px solid #1f2937;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateX(40px);
+      transition: opacity 0.6s ease 0.3s, transform 0.6s ease 0.3s;
+      pointer-events: none;
+      overflow: hidden;
+      font-family: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, monospace;
+    }
+
+    .a11y-log.visible {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .a11y-log-header {
+      padding: 16px 20px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      border-bottom: 1px solid #1f2937;
+      flex-shrink: 0;
+    }
+
+    .a11y-log-entries {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 16px;
+    }
+
+    .a11y-entry {
+      display: flex;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 12.5px;
+      line-height: 1.5;
+      animation: fadeInEntry 0.3s ease;
+    }
+
+    @keyframes fadeInEntry {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .a11y-tag {
+      flex-shrink: 0;
+      font-weight: 700;
+      font-size: 11px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      height: fit-content;
+    }
+
+    .a11y-tag.AUDIO   { color: #00C8FF; background: rgba(0,200,255,0.1); }
+    .a11y-tag.EARCON  { color: #FF3D8B; background: rgba(255,61,139,0.1); }
+    .a11y-tag.SPEECH  { color: #4ADE80; background: rgba(74,222,128,0.1); }
+    .a11y-tag.STATE   { color: #FACC15; background: rgba(250,204,21,0.1); }
+    .a11y-tag.ACTION  { color: #22C55E; background: rgba(34,197,94,0.1); }
+    .a11y-tag.ERROR   { color: #EF4444; background: rgba(239,68,68,0.1); }
+
+    .a11y-event {
+      color: #9ca3af;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .a11y-detail {
+      color: #6b7280;
+    }
   </style>
 </head>
 <body>
@@ -167,14 +253,159 @@
     </div>
   </div>
 
+  <div class="a11y-log" id="a11yLog">
+    <div class="a11y-log-header">Accessibility Events</div>
+    <div class="a11y-log-entries" id="a11yEntries"></div>
+  </div>
+
   <script>
-    const screen = document.getElementById('screen');
-    let state = 0;
-    screen.addEventListener('click', () => {
-      state = (state + 1) % 3;
-      screen.classList.toggle('blurred', state >= 1);
-      screen.classList.toggle('active',  state >= 2);
-    });
+// ── Earcon System ──
+const EarconSystem = (() => {
+  let ctx = null;
+  function getCtx() {
+    if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return ctx;
+  }
+
+  function play(name) {
+    const ac = getCtx();
+    const now = ac.currentTime;
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.connect(gain);
+    gain.connect(ac.destination);
+
+    switch (name) {
+      case 'greeting': {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523, now);
+        osc.frequency.linearRampToValueAtTime(784, now + 0.3);
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.5);
+        osc.start(now);
+        osc.stop(now + 0.5);
+        break;
+      }
+      case 'mic-on': {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.15);
+        osc.start(now);
+        osc.stop(now + 0.15);
+        break;
+      }
+      case 'mic-off': {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(660, now);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.12);
+        osc.start(now);
+        osc.stop(now + 0.12);
+        break;
+      }
+      case 'thinking': {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(440, now);
+        gain.gain.setValueAtTime(0.08, now);
+        for (let i = 0; i < 8; i++) {
+          const t = now + i * 0.5;
+          gain.gain.linearRampToValueAtTime(0.08, t);
+          gain.gain.linearRampToValueAtTime(0.02, t + 0.25);
+        }
+        gain.gain.linearRampToValueAtTime(0, now + 4);
+        osc.start(now);
+        osc.stop(now + 4);
+        return osc;
+      }
+      case 'success': {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(659, now);
+        osc.frequency.setValueAtTime(880, now + 0.15);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+        break;
+      }
+      case 'error': {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(220, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+        break;
+      }
+    }
+    return osc;
+  }
+
+  return { play, getCtx };
+})();
+
+let thinkingOsc = null;
+function stopThinkingEarcon() {
+  if (thinkingOsc) {
+    try { thinkingOsc.stop(); } catch {}
+    thinkingOsc = null;
+  }
+}
+  </script>
+
+  <script>
+const A11yLog = (() => {
+  const entries = document.getElementById('a11yEntries');
+  const panel = document.getElementById('a11yLog');
+
+  function show() { panel.classList.add('visible'); }
+  function hide() { panel.classList.remove('visible'); }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function log(type, event, detail) {
+    const entry = document.createElement('div');
+    entry.className = 'a11y-entry';
+    entry.innerHTML =
+      `<span class="a11y-tag ${type}">${type}</span>` +
+      `<span class="a11y-event">${escapeHtml(event)}</span>` +
+      `<span class="a11y-detail">${escapeHtml(detail)}</span>`;
+    entries.appendChild(entry);
+    entries.scrollTop = entries.scrollHeight;
+  }
+
+  function logBackendEvents(events) {
+    if (!events) return;
+    for (const ev of events) {
+      log(ev.type, ev.event, ev.detail);
+    }
+  }
+
+  return { show, hide, log, logBackendEvents };
+})();
+  </script>
+
+  <script>
+  const screen = document.getElementById('screen');
+  let transitionState = 0;
+  let activated = false;
+  screen.addEventListener('click', () => {
+    if (activated) return;
+    transitionState = (transitionState + 1) % 3;
+    screen.classList.toggle('blurred', transitionState >= 1);
+    screen.classList.toggle('active',  transitionState >= 2);
+
+    if (transitionState === 2) {
+      activated = true;
+      A11yLog.show();
+      A11yLog.log('AUDIO', 'AUTO-GREET', 'Lynn introduced herself — no visual context needed');
+      EarconSystem.play('greeting');
+    }
+  });
   </script>
 
 </body>
