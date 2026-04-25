@@ -773,6 +773,7 @@ const A11yLog = (() => {
 
   // ── Voice Agent State ──
   let appState = 'idle';
+  let holdTimer = null;
   let pressStartedAt = 0;
   let recorder = null;
   let micStream = null;
@@ -1091,21 +1092,38 @@ const A11yLog = (() => {
 
     // Triple-tap = audio glance
     if (TripleTap.onTap()) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
       AudioGlance.trigger();
       return;
     }
 
+    // Delay recording start so triple-tap can be detected
     if (appState === 'idle') {
-      await startRecording();
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(async () => {
+        holdTimer = null;
+        if (appState === 'idle') await startRecording();
+      }, 420);
     } else if (appState === 'thinking' || appState === 'speaking') {
       interrupt();
-      await startRecording();
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(async () => {
+        holdTimer = null;
+        await startRecording();
+      }, 420);
     }
   });
 
   function onRelease(e) {
     try { screen.releasePointerCapture(e.pointerId); } catch {}
-    if (activated && appState === 'listening') endRecordingAndSend();
+    if (activated && appState === 'listening') {
+      endRecordingAndSend();
+    } else if (holdTimer) {
+      // User tapped quickly (not held) — cancel pending recording
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
   }
   screen.addEventListener('pointerup', onRelease);
   screen.addEventListener('pointercancel', onRelease);
