@@ -14,7 +14,7 @@ load_dotenv()
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
 from openai import OpenAI
 from anthropic import Anthropic
@@ -117,7 +117,12 @@ async def text(message: str = Form(...)):
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": f"{type(e).__name__}: {e}"})
 
-app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
+@app.get("/")
+async def root():
+    return FileResponse("frontend/demo-transition.html")
+
+app.mount("/picture", StaticFiles(directory="picture"), name="picture")
+app.mount("/frontend", StaticFiles(directory="frontend"), name="frontend-static")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
