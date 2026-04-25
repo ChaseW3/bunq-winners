@@ -827,10 +827,10 @@ const A11yLog = (() => {
   const lockDots = document.getElementById('lockDots');
   const dots = lockDots.querySelectorAll('.lock-dot');
 
-  // Secret pattern: intervals between taps in ms
-  // tap-tap-pause-tap-tap (quick quick slow quick quick)
-  const SECRET_RHYTHM = [300, 700, 300];
-  const TOLERANCE = 250;
+  // Secret pattern: tap-tap-PAUSE-tap-tap
+  // We check: 4 taps, and the middle gap is at least 1.8x longer than the average of the quick gaps
+  const EXPECTED_TAPS = 4;
+  const PAUSE_RATIO = 1.8;
   const EVAL_DELAY = 1400;
 
   let tapTimes = [];
@@ -859,8 +859,8 @@ const A11yLog = (() => {
   }
 
   function evaluateRhythm() {
-    if (tapTimes.length < 2) {
-      resetAuth();
+    if (tapTimes.length !== EXPECTED_TAPS) {
+      authFail();
       return;
     }
 
@@ -869,16 +869,13 @@ const A11yLog = (() => {
       intervals.push(tapTimes[i] - tapTimes[i - 1]);
     }
 
-    if (intervals.length !== SECRET_RHYTHM.length) {
-      authFail();
-      return;
-    }
+    // Pattern: [quick, slow, quick] — the middle interval should be notably longer
+    const quick1 = intervals[0];
+    const pause = intervals[1];
+    const quick2 = intervals[2];
+    const avgQuick = (quick1 + quick2) / 2;
 
-    const match = intervals.every((iv, i) =>
-      Math.abs(iv - SECRET_RHYTHM[i]) <= TOLERANCE
-    );
-
-    if (match) {
+    if (pause > avgQuick * PAUSE_RATIO && quick1 < 800 && quick2 < 800) {
       authSuccess();
     } else {
       authFail();
