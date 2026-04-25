@@ -712,9 +712,8 @@ const A11yLog = (() => {
       }
 
       A11yLog.logBackendEvents(data.accessibility_events);
-      const hadPendingTour = hasPendingDraft;
       hasPendingDraft = !!data.pending;
-      if (hasPendingDraft && !hadPendingTour) paymentFlow = 'awaitingConfirmation';
+      if (hasPendingDraft && paymentFlow === 'none') paymentFlow = 'awaitingConfirmation';
 
       if (data.reply_text) {
         A11yLog.log('AUDIO', 'tts-playback', 'Lynn speaking response aloud');
@@ -980,9 +979,8 @@ const A11yLog = (() => {
       stopThinkingEarcon();
 
       // Track pending draft state — enter payment flow when draft is created
-      const hadPending = hasPendingDraft;
       hasPendingDraft = !!data.pending;
-      if (hasPendingDraft && !hadPending) {
+      if (hasPendingDraft && paymentFlow === 'none') {
         paymentFlow = 'awaitingConfirmation';
         A11yLog.log('STATE', 'payment-flow', 'Draft created — entering payment confirmation flow');
       }
