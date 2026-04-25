@@ -1,82 +1,18 @@
 [
   {
     "role": "user",
-    "content": "Has Sophie paid me?"
-  },
-  {
-    "role": "assistant",
-    "content": "No incoming payment from Sophie yet."
-  },
-  {
-    "role": "user",
-    "content": "Have I sent money to Shofi?"
-  },
-  {
-    "role": "assistant",
-    "content": "I don't have a contact named Shofi, and none of your recent payments show that name. I can't confirm any payment to them."
-  },
-  {
-    "role": "user",
-    "content": "Have I sent money to Sophie in the last month?"
-  },
-  {
-    "role": "assistant",
-    "content": "The transactions don't show names, only IBANs — so I can't confirm which ones went to Sophie specifically. The two pizza payments I mentioned earlier were to the same IBAN. Do you know Sophie's IBAN, or would you like me to look her up in your contacts?"
-  },
-  {
-    "role": "user",
-    "content": "Can you tell us about how much we spent on groceries last month?"
-  },
-  {
-    "role": "assistant",
-    "content": "The spending data groups everything under one account, so I can't pull out a grocery total specifically. You spent just over one thousand and forty-six euros in the last thirty days across fifty-three transactions, but I'm unable to break out groceries from that."
-  },
-  {
-    "role": "user",
     "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
   },
   {
     "role": "assistant",
-    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
+    "content": "Eight hundred and ninety-three euros and fifty-nine cents."
   },
   {
     "role": "user",
-    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
+    "content": "Hello, hello, hello."
   },
   {
     "role": "assistant",
-    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
-  },
-  {
-    "role": "user",
-    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
-  },
-  {
-    "role": "assistant",
-    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
-  },
-  {
-    "role": "user",
-    "content": "Read me my IBAN. Just the IBAN, nothing else. Read it in plain letters and digits, not the NATO phonetic alphabet."
-  },
-  {
-    "role": "assistant",
-    "content": "N L 2 5 B U N Q 2 1 0 6 2 3 8 9 9 1"
-  },
-  {
-    "role": "user",
-    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
-  },
-  {
-    "role": "assistant",
-    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
-  },
-  {
-    "role": "user",
-    "content": "Hi, can you list all my grocery spendings from last week?"
-  },
-  {
-    "role": "assistant",
-    "content": "I don't have a way to filter transactions by category like groceries directly. Would you like me to go through your recent card transactions one by one so you can identify the grocery ones?"
+    "content": "Hey! How can I help you?"
   }
 ]

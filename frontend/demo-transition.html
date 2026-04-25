@@ -504,12 +504,22 @@ const TapShortcuts = (() => {
   let tapTimer = null;
   let enabled = false;
   let busy = false;
+  let currentAbort = null;
 
   function enable() { enabled = true; }
   function disable() { enabled = false; }
 
+  function interrupt() {
+    if (currentAbort) { try { currentAbort.abort(); } catch {} currentAbort = null; }
+    busy = false;
+    tapCount = 0;
+    if (tapTimer) { clearTimeout(tapTimer); tapTimer = null; }
+  }
+
   function onTap() {
-    if (!enabled || busy) return false;
+    if (!enabled) return false;
+    // A new tap aborts any in-flight quick tool so this tap starts fresh.
+    if (busy) interrupt();
     tapCount++;
     EarconSystem.play('tap');
     clearTimeout(tapTimer);
@@ -524,6 +534,10 @@ const TapShortcuts = (() => {
   async function fire(count) {
     tapCount = 0;
     tapTimer = null;
+    // Abort any other in-flight action (voice flow / TTS / thinking earcon).
+    if (typeof window.interruptCurrentAction === 'function') window.interruptCurrentAction();
+    const myAbort = new AbortController();
+    currentAbort = myAbort;
     busy = true;
     const shortcuts = {
       1: { prompt: 'Tell me just the balance amount, nothing else. Be extremely brief, just the number in words.', label: 'balance' },
@@ -540,8 +554,10 @@ const TapShortcuts = (() => {
 
       const form = new FormData();
       form.append('message', shortcut.prompt);
-      const resp = await fetch(`${BACKEND}/text`, { method: 'POST', body: form });
+      const resp = await fetch(`${BACKEND}/text`, { method: 'POST', body: form, signal: myAbort.signal });
+      if (myAbort.signal.aborted) return;
       const data = await resp.json();
+      if (myAbort.signal.aborted) return;
       stopThinkingEarcon();
 
       if (data.tool_calls && data.tool_calls.length > 0) {
@@ -558,23 +574,32 @@ const TapShortcuts = (() => {
         A11yLog.log('SPEECH', `quick-${shortcut.label}`, `"${data.reply_text}"`);
         setVoiceState('speaking');
         const audio = await speakText(data.reply_text);
+        if (myAbort.signal.aborted) return;
         if (audio) {
-          await new Promise(resolve => { audio.onended = resolve; });
+          await new Promise(resolve => {
+            audio.onended = resolve;
+            myAbort.signal.addEventListener('abort', resolve, { once: true });
+          });
         } else {
           await new Promise(r => setTimeout(r, Math.max(800, data.reply_text.length * 50)));
         }
       }
     } catch (e) {
+      if (e.name === 'AbortError' || myAbort.signal.aborted) return;
       stopThinkingEarcon();
       A11yLog.log('ERROR', 'tap-shortcut-failed', e.message || String(e));
       EarconSystem.play('error');
     } finally {
-      busy = false;
-      setVoiceState('idle');
+      // Only clean up if this fire wasn't superseded by a newer action.
+      if (currentAbort === myAbort) {
+        currentAbort = null;
+        busy = false;
+        if (!myAbort.signal.aborted) setVoiceState('idle');
+      }
     }
   }
 
-  return { onTap, enable, disable, TAP_WINDOW };
+  return { onTap, enable, disable, interrupt, TAP_WINDOW };
 })();
   </script>
 
@@ -793,6 +818,8 @@ const A11yLog = (() => {
 
   // ── Recording ──
   async function startRecording() {
+    // Starting a recording is a new action — abort anything in flight.
+    if (typeof window.interruptCurrentAction === 'function') window.interruptCurrentAction();
     try {
       chunks = [];
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -1046,6 +1073,15 @@ const A11yLog = (() => {
     teardownMic();
   }
 
+  // Aborts whatever is currently happening so a new action can start clean.
+  // Skipped during payment confirm / passcode entry so those flows aren't clobbered.
+  window.interruptCurrentAction = function interruptCurrentAction() {
+    if (paymentFlow !== 'none' || payAuthActive) return false;
+    interrupt();
+    if (typeof TapShortcuts !== 'undefined' && TapShortcuts.interrupt) TapShortcuts.interrupt();
+    return true;
+  };
+
   // ── Rhythm Auth ──
   const lockOverlay = document.getElementById('lockOverlay');
   const lockDots = document.getElementById('lockDots');
@@ -1292,21 +1328,14 @@ const A11yLog = (() => {
 
     pressStartedAt = performance.now();
 
-    // Normal mode: hold = record, quick release = tap shortcut
-    if (appState === 'idle') {
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(async () => {
-        holdTimer = null;
-        if (appState === 'idle') await startRecording();
-      }, TapShortcuts.TAP_WINDOW || 420);
-    } else if (appState === 'thinking' || appState === 'speaking') {
-      interrupt();
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(async () => {
-        holdTimer = null;
-        await startRecording();
-      }, TapShortcuts.TAP_WINDOW || 420);
-    }
+    // Normal mode: hold = record, quick release = tap shortcut.
+    // Action handlers (startRecording / TapShortcuts.fire) self-abort the previous action,
+    // so we don't pre-emptively interrupt here — that way a quick re-tap doesn't get lost.
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(async () => {
+      holdTimer = null;
+      await startRecording();
+    }, TapShortcuts.TAP_WINDOW || 420);
   });
 
   let confirmTapCount = 0;
@@ -1356,7 +1385,7 @@ const A11yLog = (() => {
       // Quick release = tap (not a hold)
       clearTimeout(holdTimer);
       holdTimer = null;
-      if (activated && appState === 'idle' && paymentFlow === 'none') {
+      if (activated && paymentFlow === 'none' && !payAuthActive) {
         TapShortcuts.onTap();
       }
     }
