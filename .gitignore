@@ -10,3 +10,8 @@ __pycache__/
 .bunq_context.cfg
 .env
 uv.lock
+node_modules
+test_local_api.js
+package-lock.json
+package.json
+bunq_api_*

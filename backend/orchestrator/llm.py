@@ -26,8 +26,9 @@ def run_llm_turn(
     model: str = "claude-sonnet-4-5",
 ) -> dict[str, Any]:
     """Returns {'reply': str, 'tool_calls': [{name, input, result, is_error}]}."""
-    system = build_system_prompt(store.get(sid))
-    messages: list[dict[str, Any]] = [{"role": "user", "content": user_text}]
+    session = store.get(sid)
+    system = build_system_prompt(session)
+    messages: list[dict[str, Any]] = list(session["history"]) + [{"role": "user", "content": user_text}]
     tool_calls: list[dict[str, Any]] = []
 
     for _ in range(MAX_ITERATIONS):
@@ -74,6 +75,8 @@ def run_llm_turn(
 
         texts = [b["text"] for b in blocks if b.get("type") == "text"]
         reply = " ".join(t.strip() for t in texts if t.strip())
+        store.append_history(sid, {"role": "user", "content": user_text})
+        store.append_history(sid, {"role": "assistant", "content": reply})
         return {"reply": reply, "tool_calls": tool_calls}
 
     raise RuntimeError("LLM loop exceeded max iterations")

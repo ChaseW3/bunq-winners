@@ -153,6 +153,16 @@
     let speakingTimer = null;
     const MIN_HOLD_MS = 200;
 
+    // ---------- ElevenLabs TTS ----------
+    const ELEVENLABS_VOICE_ID = 'gE0owC0H9C8SzfDyIUtB';
+    let elevenLabsApiKey = '';
+    let ttsAudio = null;
+
+    fetch(`${BACKEND}/config`)
+      .then(r => r.json())
+      .then(cfg => { elevenLabsApiKey = cfg.elevenlabs_api_key; })
+      .catch(() => {});
+
     function setState(s) {
       appState = s;
       stage.classList.toggle('listening', s === 'listening');
@@ -318,9 +328,42 @@
       micLevel = 0;
     }
 
+    // ---------- TTS ----------
+    async function speakReply(text) {
+      if (!text || !elevenLabsApiKey) return;
+      try {
+        const resp = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+          {
+            method: 'POST',
+            headers: { 'xi-api-key': elevenLabsApiKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+            })
+          }
+        );
+        if (!resp.ok) { console.warn('ElevenLabs TTS failed:', resp.status); return; }
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        if (ttsAudio) { try { ttsAudio.pause(); } catch {} }
+        ttsAudio = new Audio(url);
+        ttsAudio.onended = () => URL.revokeObjectURL(url);
+        await ttsAudio.play();
+      } catch (e) {
+        console.warn('ElevenLabs TTS error:', e);
+      }
+    }
+
+    function stopTts() {
+      if (ttsAudio) { try { ttsAudio.pause(); } catch {} ttsAudio = null; }
+    }
+
     // ---------- recording / network ----------
     async function startRecording() {
       try {
+        if (!audioCtx) audioCtx = new AudioContext();
         chunks = [];
         micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         recorder = new MediaRecorder(micStream);
@@ -374,6 +417,7 @@
         const data = await resp.json();
         if (appState !== 'thinking') return;
         renderResult(data);
+        if (data.reply_text) speakReply(data.reply_text);
         startSpeaking(data.reply_text || '');
       } catch (e) {
         if (e.name === 'AbortError') return;
@@ -395,6 +439,7 @@
 
     function interrupt() {
       if (abortCtrl) { try { abortCtrl.abort(); } catch {} abortCtrl = null; }
+      stopTts();
       clearTimeout(speakingTimer);
       if (recorder && recorder.state !== 'inactive') {
         try { recorder.onstop = null; recorder.stop(); } catch {}
