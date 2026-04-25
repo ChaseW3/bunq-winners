@@ -90,6 +90,7 @@ async def voice(audio: UploadFile = File(...)):
             "user_text": user_text,
             "reply_text": result["reply"],
             "tool_calls": result["tool_calls"],
+            "accessibility_events": result.get("accessibility_events", []),
             "pending": pending,
         }
     except Exception as e:
@@ -108,6 +109,7 @@ async def text(message: str = Form(...)):
             "user_text": message,
             "reply_text": result["reply"],
             "tool_calls": result["tool_calls"],
+            "accessibility_events": result.get("accessibility_events", []),
             "pending": pending,
         }
     except Exception as e:
