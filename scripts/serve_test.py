@@ -117,6 +117,16 @@ async def text(message: str = Form(...)):
         traceback.print_exc()
         return JSONResponse(status_code=500, content={"error": f"{type(e).__name__}: {e}"})
 
+@app.post("/reset")
+async def reset():
+    """Wipe persisted memory and reset the in-memory session history."""
+    memory.save([])
+    sess = store.get(SHARED_SID)
+    sess["history"] = []
+    sess["pending_draft"] = None
+    sess["contacts_cache"] = []
+    return {"ok": True}
+
 @app.get("/glance")
 async def glance():
     """Quick audio glance: balance health, today's spending, incoming payments."""

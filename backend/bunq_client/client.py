@@ -201,11 +201,18 @@ class RealBunqClient:
                     label = getattr(p.counterparty_alias, "label_monetary_account", None)
                     if label:
                         name = getattr(label, "iban", "") or ""
+            desc = p.description or ""
+            # Sandbox self-transfers hide the merchant in the description ("Name — details").
+            # Extract the merchant name so the LLM sees it as the counterparty.
+            if " — " in desc:
+                merchant, _, detail = desc.partition(" — ")
+                name = merchant.strip()
+                desc = detail.strip()
             results.append(PaymentSummary(
                 date=p.created,
                 counterparty=name,
                 amount=Decimal(p.amount.value),
-                description=p.description or "",
+                description=desc,
             ))
         return results
 
@@ -240,7 +247,7 @@ class RealBunqClient:
         from bunq.sdk.model.generated.object_ import AmountObject, PointerObject, DraftPaymentEntryObject
         entry = DraftPaymentEntryObject(
             amount=AmountObject(value=str(amount), currency="EUR"),
-            counterparty_alias=PointerObject(type_="IBAN", value=iban),
+            counterparty_alias=PointerObject(type_="IBAN", value=iban, name="*"),
             description=description or "bunq Voice",
         )
         draft_id = DraftPaymentApiObject.create(
@@ -386,7 +393,26 @@ class RealBunqClient:
     # ── cards ─────────────────────────────────────────────────────────────
 
     def list_contacts(self) -> list[Contact]:
-        return []
+        # bunq has no contacts API; return demo contacts using the sink account
+        # so payments resolve to a real sandbox IBAN.
+        sink_iban = self._find_sink_iban()
+        if not sink_iban:
+            return []
+        return [
+            Contact(id="c1", name="Sophie van Dijk", iban=sink_iban),
+            Contact(id="c2", name="Nikki de Vries", iban=sink_iban),
+            Contact(id="c3", name="Jan Bakker", iban=sink_iban),
+        ]
+
+    def _find_sink_iban(self) -> str | None:
+        from bunq.sdk.model.generated.endpoint import MonetaryAccountBankApiObject
+        for a in MonetaryAccountBankApiObject.list().value:
+            if a.description == "Seed Sink" and a.status == "ACTIVE":
+                for al in (a.alias or []):
+                    t = getattr(al, "type_", None) or getattr(al, "type", None)
+                    if t == "IBAN":
+                        return al.value
+        return None
 
     def list_cards(self) -> list[dict[str, Any]]:
         from bunq.sdk.model.generated.endpoint import CardDebitApiObject

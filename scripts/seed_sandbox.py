@@ -61,7 +61,7 @@ FIXTURE: list[tuple[str, str, str]] = [
     ("NS",             "12.40", "train"),
     ("Shell",          "52.10", "fuel"),
     ("Gym Amsterdam",  "39.00", "gym monthly"),
-    ("Michelle Weng",  "25.00", "dinner split"),
+    ("Sophie van Dijk",  "25.00", "dinner split"),
 ]
 
 

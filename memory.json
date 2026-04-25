@@ -1,82 +1,82 @@
 [
   {
     "role": "user",
-    "content": "confirm"
+    "content": "Has Sophie paid me?"
   },
   {
     "role": "assistant",
-    "content": "There's no pending payment to confirm. Would you like to start a new transfer?"
+    "content": "No incoming payment from Sophie yet."
   },
   {
     "role": "user",
-    "content": "What's my balance?"
+    "content": "Have I sent money to Shofi?"
   },
   {
     "role": "assistant",
-    "content": "Eight hundred and forty-seven euros and thirty-five cents."
+    "content": "I don't have a contact named Shofi, and none of your recent payments show that name. I can't confirm any payment to them."
   },
   {
     "role": "user",
-    "content": "What did I spend this week?"
+    "content": "Have I sent money to Sophie in the last month?"
   },
   {
     "role": "assistant",
-    "content": "You spent three hundred and fifty-one euros and seventy cents this week — up one hundred and eighty-seven euros from last week. Your biggest expenses were Albert Heijn at one hundred and sixteen euros seventy cents, followed by Bol.com at sixty-seven euros and Uber at fifty-four euros twenty cents."
+    "content": "The transactions don't show names, only IBANs — so I can't confirm which ones went to Sophie specifically. The two pizza payments I mentioned earlier were to the same IBAN. Do you know Sophie's IBAN, or would you like me to look her up in your contacts?"
   },
   {
     "role": "user",
-    "content": "Send 5 euros to Nikki for lunch"
+    "content": "Can you tell us about how much we spent on groceries last month?"
   },
   {
     "role": "assistant",
-    "content": "Five euros to Nikki de Vries, November Lima nine one Bravo Uniform November Quebec zero nine eight seven six five four three two one, description: lunch. Say confirm to proceed, or cancel to stop."
+    "content": "The spending data groups everything under one account, so I can't pull out a grocery total specifically. You spent just over one thousand and forty-six euros in the last thirty days across fifty-three transactions, but I'm unable to break out groceries from that."
   },
   {
     "role": "user",
-    "content": "Transferred 20 euros to Nicky the Fish for pizza."
+    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
   },
   {
     "role": "assistant",
-    "content": "I'm not sure if that was a confirmation — say confirm to send the five euros to Nikki de Vries, or cancel to stop."
+    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
   },
   {
     "role": "user",
-    "content": "Yes, of course."
+    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
   },
   {
     "role": "assistant",
-    "content": "Five euros to Nikki de Vries, November Lima nine one Bravo Uniform November Quebec zero nine eight seven six five four three two one, description: lunch. Say confirm to proceed, or cancel to stop."
+    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
   },
   {
     "role": "user",
-    "content": "confirm"
+    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
   },
   {
     "role": "assistant",
-    "content": "Done — five euros sent to Nikki de Vries for lunch. Your new balance is eight hundred and forty-two euros and thirty-five cents."
+    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
   },
   {
     "role": "user",
-    "content": "Can you tell me my last three chest exhales?"
+    "content": "Read me my IBAN. Just the IBAN, nothing else. Read it in plain letters and digits, not the NATO phonetic alphabet."
   },
   {
     "role": "assistant",
-    "content": "That's not something I can help with — I only handle your banking and finances. Is there anything else you'd like to do with your account?"
+    "content": "N L 2 5 B U N Q 2 1 0 6 2 3 8 9 9 1"
   },
   {
     "role": "user",
-    "content": "can you tell me my last three transactions"
+    "content": "Tell me just the balance amount, nothing else. Be extremely brief, just the number in words."
   },
   {
     "role": "assistant",
-    "content": "You have three recent transactions. The first is thirty-two euros and forty cents to Albert Heijn for groceries. Want to hear the next one?"
+    "content": "Nine hundred and fifty-three euros and fifty-eight cents."
   },
   {
     "role": "user",
-    "content": "Yes, list them all."
+    "content": "Hi, can you list all my grocery spendings from last week?"
   },
   {
     "role": "assistant",
-    "content": "The second is five euros to Nikki de Vries for lunch. The third is sixty-seven euros to Bol.com for an online order."
+    "content": "I don't have a way to filter transactions by category like groceries directly. Would you like me to go through your recent card transactions one by one so you can identify the grocery ones?"
   }
 ]

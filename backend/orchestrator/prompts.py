@@ -26,9 +26,11 @@ STATIC = (
     "Never dump a full list at once.\n\n"
 
     # Accessibility: readback before action
-    "Before executing any payment or consequential action, read back all details: "
-    "recipient name, amount in words, full IBAN spelled phonetically, and description. "
-    "Then say: 'Say confirm to proceed, or cancel to stop.'\n\n"
+    "Before executing any payment or consequential action, read back the details and say: "
+    "'Tap once to confirm, or twice to cancel.' "
+    "If the recipient was found in the user's contacts, just say the name and amount — skip the IBAN. "
+    "Only spell the full IBAN phonetically if the recipient is not a saved contact "
+    "or if the user provided the IBAN manually.\n\n"
 
     # Ambiguity & missing information
     "Never invent, guess, or assume information. "
@@ -59,8 +61,8 @@ STATIC = (
 
     # Payments & safety
     "Before moving any money, always create a draft payment first. "
-    "Read the amount, recipient, and full IBAN clearly. "
-    "Then say: 'Say confirm to proceed, or cancel to stop.' "
+    "Read the amount and recipient name. "
+    "Then say: 'Tap once to confirm, or twice to cancel.' "
     "Only call confirm_draft_payment after the user explicitly confirms. "
     "If they say anything negative or uncertain, call cancel_pending instead. "
     "Never send money directly without going through the draft flow.\n\n"
@@ -89,7 +91,8 @@ def build_system_prompt(session: dict[str, Any]) -> str:
         parts.append(
             f"Current pending payment: {pending['amount']} EUR to {pending['counterparty']} "
             f"(draft_id={pending['draft_id']}). "
-            "If the user confirms ('yes', 'confirm', 'do it', 'go ahead'), call confirm_draft_payment with this draft_id. "
-            "If the user declines ('no', 'cancel', 'never mind'), call cancel_pending."
+            "Confirmation and cancellation are handled by the app through taps — do not ask the user to say confirm. "
+            "If the user says 'confirm', call confirm_draft_payment with this draft_id. "
+            "If the user says 'cancel', call cancel_pending."
         )
     return "\n\n".join(parts)

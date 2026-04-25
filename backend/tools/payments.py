@@ -3,7 +3,7 @@ from backend.bunq_client import BunqClient
 from backend.session.store import SessionStore
 
 
-def list_recent_payments(client: BunqClient, store: SessionStore, sid: str, limit: int = 5) -> list[dict]:
+def list_recent_payments(client: BunqClient, store: SessionStore, sid: str, limit: int = 25) -> list[dict]:
     sess = store.get(sid)
     ps = client.recent_payments(sess["primary_account_id"], limit=limit)
     return [

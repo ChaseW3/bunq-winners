@@ -147,9 +147,13 @@ def _spending_breakdown(
     ])
 
     by_counterparty: dict[str, Decimal] = defaultdict(Decimal)
+    by_category: dict[str, Decimal] = defaultdict(Decimal)
     for p in spend_30d:
         by_counterparty[p.counterparty] += abs(_parse_amount(p))
+        cat = (p.description or "other").lower().strip()
+        by_category[cat] += abs(_parse_amount(p))
     top_5 = sorted(by_counterparty.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_categories = sorted(by_category.items(), key=lambda x: x[1], reverse=True)[:5]
 
     total_30d = sum(abs(_parse_amount(p)) for p in spend_30d)
     total_7d = sum(abs(_parse_amount(p)) for p in spend_7d)
@@ -164,6 +168,9 @@ def _spending_breakdown(
         "week_over_week_delta_eur": f"{total_7d - total_prev_7d:.2f}",
         "top_counterparties": [
             {"name": name, "total_eur": f"{amt:.2f}"} for name, amt in top_5
+        ],
+        "top_categories": [
+            {"category": cat, "total_eur": f"{amt:.2f}"} for cat, amt in top_categories
         ],
         "transaction_count_30d": len(spend_30d),
     }

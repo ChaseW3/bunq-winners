@@ -97,10 +97,10 @@ SCHEMAS: list[dict[str, Any]] = [
     # ── payments ─────────────────────────────────────────────────────────
     {
         "name": "list_recent_payments",
-        "description": "List the most recent payments on the primary account.",
+        "description": "List the most recent payments on the primary account. Default limit is 25. For spending analysis or category questions, prefer financial_context with focus=spending_breakdown.",
         "input_schema": {
             "type": "object",
-            "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 200}},
+            "properties": {"limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 25}},
             "required": [],
         },
     },
@@ -452,7 +452,7 @@ def dispatch(client: BunqClient, store: SessionStore, sid: str, name: str, args:
         "create_account":            lambda: create_account(client, store, sid, **args),
         "update_account":            lambda: update_account(client, store, sid, **args),
         # payments
-        "list_recent_payments":      lambda: list_recent_payments(client, store, sid, limit=args.get("limit", 5)),
+        "list_recent_payments":      lambda: list_recent_payments(client, store, sid, limit=args.get("limit", 25)),
         "get_payment":               lambda: get_payment(client, store, sid, **args),
         "send_payment":              lambda: send_payment(client, store, sid, **args),
         # drafts

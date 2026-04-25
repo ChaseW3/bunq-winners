@@ -12,7 +12,7 @@ class FakeBunqClient:
         self.webhook_calls: list[tuple] = []
         self._balance = Decimal("847.35")
         self._contacts = [
-            Contact(id="c1", name="Michelle Weng", iban="NL42BUNQ0123456789"),
+            Contact(id="c1", name="Sophie van Dijk", iban="NL42BUNQ0123456789"),
             Contact(id="c2", name="Nikki de Vries", iban="NL91BUNQ0987654321"),
             Contact(id="c3", name="Jan Bakker", iban="NL00BUNQ0000000003"),
             Contact(id="c4", name="Finn Bunq", iban="NL00BUNQ0000000002"),
@@ -35,7 +35,7 @@ class FakeBunqClient:
             PaymentSummary(date="2026-04-19", counterparty="Dad",           amount=Decimal("500.00"), description="birthday gift"),
             PaymentSummary(date="2026-04-18", counterparty="Jumbo",         amount=Decimal("-15.20"), description="groceries"),
             PaymentSummary(date="2026-04-17", counterparty="Starbucks",     amount=Decimal("-4.80"),  description="coffee"),
-            PaymentSummary(date="2026-04-17", counterparty="Michelle Weng", amount=Decimal("-25.00"), description="dinner split"),
+            PaymentSummary(date="2026-04-17", counterparty="Sophie van Dijk", amount=Decimal("-25.00"), description="dinner split"),
             PaymentSummary(date="2026-04-16", counterparty="Gym Amsterdam", amount=Decimal("-39.00"), description="monthly"),
             PaymentSummary(date="2026-04-15", counterparty="Employer BV",   amount=Decimal("2450.00"), description="salary"),
             PaymentSummary(date="2026-04-15", counterparty="Shell",         amount=Decimal("-52.10"), description="fuel"),
