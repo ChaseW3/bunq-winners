@@ -572,24 +572,28 @@ const AudioGlance = (() => {
 
 // ── Triple-Tap Detector ──
 const TripleTap = (() => {
-  const MAX_INTERVAL = 400;
+  const MAX_INTERVAL = 600;
   let taps = [];
   let enabled = false;
 
-  function enable() { enabled = true; }
+  function enable() { enabled = true; console.log('TripleTap enabled'); }
   function disable() { enabled = false; }
 
   function onTap() {
-    if (!enabled) return false;
+    if (!enabled) { console.log('TripleTap: not enabled'); return false; }
     const now = performance.now();
+    // Discard old taps
+    taps = taps.filter(t => now - t < 1500);
     taps.push(now);
-    // Keep only last 3
-    if (taps.length > 3) taps.shift();
-    if (taps.length === 3) {
-      const gap1 = taps[1] - taps[0];
-      const gap2 = taps[2] - taps[1];
+    console.log('TripleTap: tap count =', taps.length);
+    if (taps.length >= 3) {
+      const recent = taps.slice(-3);
+      const gap1 = recent[1] - recent[0];
+      const gap2 = recent[2] - recent[1];
+      console.log('TripleTap: gaps =', gap1, gap2);
       if (gap1 < MAX_INTERVAL && gap2 < MAX_INTERVAL) {
         taps = [];
+        console.log('TripleTap: TRIGGERED!');
         return true;
       }
     }
@@ -1028,6 +1032,7 @@ const A11yLog = (() => {
     lockOverlay.classList.add('hidden');
     locked = false;
     authBusy = false;
+    TripleTap.enable();
 
     // Now start the normal transition flow
     await new Promise(r => setTimeout(r, 300));
