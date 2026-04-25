@@ -336,8 +336,6 @@
           <div class="lock-dot"></div>
           <div class="lock-dot"></div>
           <div class="lock-dot"></div>
-          <div class="lock-dot"></div>
-          <div class="lock-dot"></div>
         </div>
       </div>
       <div class="voice-ui">
@@ -829,10 +827,10 @@ const A11yLog = (() => {
   const dots = lockDots.querySelectorAll('.lock-dot');
 
   // Secret pattern: intervals between taps in ms
-  // tap--tap--pause--tap-tap-tap (roughly: 300, 600, 250, 250)
-  const SECRET_RHYTHM = [300, 600, 250, 250];
-  const TOLERANCE = 180;
-  const EVAL_DELAY = 1500;
+  // Three steady taps (~400ms apart)
+  const SECRET_RHYTHM = [400, 400];
+  const TOLERANCE = 300;
+  const EVAL_DELAY = 1200;
 
   let tapTimes = [];
   let evalTimer = null;
