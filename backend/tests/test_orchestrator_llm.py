@@ -114,6 +114,50 @@ def test_system_prompt_includes_reasoning_guidance(session):
     assert "confirm_draft_payment" in system_sent
 
 
+def test_accessibility_events_includes_full_amount_when_amount_in_reply(session):
+    store, sid = session
+    llm = ScriptedLLM([
+        {"content": [_text("Your balance is one thousand two hundred forty-seven euros.")], "stop_reason": "end_turn"},
+    ])
+    out = run_llm_turn(llm, FakeBunqClient(), store, sid, user_text="what's my balance?")
+    events = out["accessibility_events"]
+    types = [e["type"] for e in events]
+    assert "SPEECH" in types
+
+
+def test_accessibility_events_includes_voice_confirm_on_draft(session):
+    store, sid = session
+    llm = ScriptedLLM([
+        {"content": [_tool_use("t1", "create_draft_payment", {
+            "iban": "NL00BUNQ0000000002", "amount": "20.00",
+            "description": "pizza", "counterparty_name": "Finn Bunq",
+        })], "stop_reason": "tool_use"},
+        {"content": [_text("Sending twenty euros to Finn Bunq. Say confirm to proceed, or cancel to stop.")], "stop_reason": "end_turn"},
+    ])
+    out = run_llm_turn(llm, FakeBunqClient(), store, sid, user_text="send 20 to Finn for pizza")
+    events = out["accessibility_events"]
+    event_types = [(e["type"], e["event"]) for e in events]
+    assert ("ACTION", "voice-confirm") in event_types
+    assert ("SPEECH", "readback") in event_types
+
+
+def test_accessibility_events_includes_error_on_tool_failure(session):
+    store, sid = session
+
+    class BoomClient(FakeBunqClient):
+        def list_savings_accounts(self):
+            raise RuntimeError("api down")
+
+    llm = ScriptedLLM([
+        {"content": [_tool_use("t1", "list_savings_accounts", {})], "stop_reason": "tool_use"},
+        {"content": [_text("Sorry — I couldn't reach savings right now.")], "stop_reason": "end_turn"},
+    ])
+    out = run_llm_turn(llm, BoomClient(), store, sid, user_text="savings?")
+    events = out["accessibility_events"]
+    types = [e["type"] for e in events]
+    assert "ERROR" in types
+
+
 def test_system_prompt_includes_lynn_accessibility_rules(session):
     store, sid = session
     llm = ScriptedLLM([
