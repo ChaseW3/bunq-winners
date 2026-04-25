@@ -112,3 +112,16 @@ def test_system_prompt_includes_reasoning_guidance(session):
     system_sent = llm.calls[0]["system"]
     assert "Summarize" in system_sent or "summariz" in system_sent.lower()
     assert "confirm_draft_payment" in system_sent
+
+
+def test_system_prompt_includes_lynn_accessibility_rules(session):
+    store, sid = session
+    llm = ScriptedLLM([
+        {"content": [_text("ok")], "stop_reason": "end_turn"},
+    ])
+    run_llm_turn(llm, FakeBunqClient(), store, sid, user_text="hi")
+    system_sent = llm.calls[0]["system"]
+    assert "Lynn" in system_sent
+    assert "NATO" in system_sent or "phonetic" in system_sent.lower()
+    assert "confirm_draft_payment" in system_sent
+    assert "as shown above" not in system_sent
