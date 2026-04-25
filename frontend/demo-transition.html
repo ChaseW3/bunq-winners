@@ -930,8 +930,16 @@ const A11yLog = (() => {
     });
   }
 
-  // Announce on first interaction (needed to unlock AudioContext)
-  let announced = false;
+  // First interaction unlocks AudioContext and announces auth
+  let audioUnlocked = false;
+
+  document.addEventListener('pointerdown', () => {
+    if (!audioUnlocked) {
+      audioUnlocked = true;
+      EarconSystem.play('tap');
+      announceAuth();
+    }
+  }, { once: true });
 
   // ── Pointer Events (Auth + Transition + Voice) ──
   const screen = document.getElementById('screen');
@@ -941,12 +949,8 @@ const A11yLog = (() => {
     e.preventDefault();
     try { screen.setPointerCapture(e.pointerId); } catch {}
 
-    if (!announced) {
-      announced = true;
-      announceAuth();
-    }
-
     if (locked) {
+      if (!audioUnlocked) return; // Wait for audio to unlock first
       onAuthTap();
       return;
     }
