@@ -264,6 +264,7 @@ const EarconSystem = (() => {
   let ctx = null;
   function getCtx() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
 
@@ -418,16 +419,17 @@ const A11yLog = (() => {
           })
         }
       );
-      if (!resp.ok) return null;
+      if (!resp.ok) { console.warn('ElevenLabs TTS failed:', resp.status); return null; }
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       if (ttsAudio) { try { ttsAudio.pause(); } catch {} }
       ttsAudio = new Audio(url);
-      ttsAudio.onended = () => URL.revokeObjectURL(url);
+      ttsAudio.onended = () => { URL.revokeObjectURL(url); };
       await ttsAudio.play();
       return ttsAudio;
     } catch (e) {
       console.warn('TTS error:', e);
+      A11yLog.log('ERROR', 'tts-failed', `TTS error: ${e.message || e}`);
       return null;
     }
   }
@@ -569,8 +571,24 @@ const A11yLog = (() => {
         signal: abortCtrl.signal,
       });
       const data = await resp.json();
+      console.log('Backend response:', data);
       stopThinkingEarcon();
       if (appState !== 'thinking') return;
+
+      // Log what the user said
+      if (data.user_text) {
+        A11yLog.log('AUDIO', 'user-speech', `User said: "${data.user_text}"`);
+      }
+
+      // Log tool calls
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        for (const tc of data.tool_calls) {
+          const argsStr = Object.keys(tc.input || {}).length
+            ? `(${Object.entries(tc.input).map(([k,v]) => `${k}=${JSON.stringify(v)}`).join(', ')})`
+            : '()';
+          A11yLog.log('ACTION', `tool: ${tc.name}`, argsStr);
+        }
+      }
 
       // Log backend accessibility events
       A11yLog.logBackendEvents(data.accessibility_events);
