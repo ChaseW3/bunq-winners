@@ -171,9 +171,18 @@
     const transcript = document.getElementById('transcript');
     const BACKEND = 'http://localhost:8000';
 
+    const ELEVENLABS_VOICE_ID = 'gE0owC0H9C8SzfDyIUtB';
+    let elevenLabsApiKey = '';
+
+    fetch(`${BACKEND}/config`)
+      .then(r => r.json())
+      .then(cfg => { elevenLabsApiKey = cfg.elevenlabs_api_key; })
+      .catch(() => {});
+
     let recorder = null;
     let chunks = [];
     let isRecording = false;
+    let audioCtx = null;
 
     tapArea.addEventListener('click', toggle);
     tapArea.addEventListener('touchend', e => { e.preventDefault(); toggle(); });
@@ -186,8 +195,37 @@
       }
     }
 
+    async function speakReply(text) {
+      if (!text) return;
+      try {
+        const resp = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+          {
+            method: 'POST',
+            headers: { 'xi-api-key': elevenLabsApiKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              text,
+              model_id: 'eleven_multilingual_v2',
+              voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+            })
+          }
+        );
+        if (!resp.ok) { console.warn('ElevenLabs TTS failed:', resp.status); return; }
+        const arrayBuffer = await resp.arrayBuffer();
+        await audioCtx.resume();
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.start();
+      } catch (e) {
+        console.warn('ElevenLabs TTS error:', e);
+      }
+    }
+
     async function startRecording() {
       try {
+        if (!audioCtx) audioCtx = new AudioContext();
         chunks = [];
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         recorder = new MediaRecorder(stream);
@@ -252,6 +290,7 @@
             html += '</div>';
           }
           transcript.innerHTML = html;
+          speakReply(data.reply_text);
         }
       } catch (e) {
         tapArea.className = '';

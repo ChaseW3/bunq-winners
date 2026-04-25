@@ -19,6 +19,7 @@ import uvicorn
 from openai import OpenAI
 from anthropic import Anthropic
 
+from backend import memory
 from backend.bunq_client.bootstrap import ensure_context
 from backend.bunq_client.client import RealBunqClient
 from backend.session.store import SessionStore
@@ -36,10 +37,16 @@ LLM_MODEL = os.environ.get("LLM_MODEL", "claude-sonnet-4-5")
 
 # Single shared session for the dev server
 SHARED_SID = store.create(bunq_user_id=0, primary_account_id=bunq.primary_account_id())
+for msg in memory.load():
+    store.append_history(SHARED_SID, msg)
 
 # --- app ---
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+@app.get("/config")
+async def config():
+    return {"elevenlabs_api_key": os.environ.get("ELEVENLABS_API_KEY", "")}
 
 @app.post("/transcribe")
 async def transcribe(audio: UploadFile = File(...)):
@@ -71,6 +78,7 @@ async def voice(audio: UploadFile = File(...)):
         result = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=user_text, model=LLM_MODEL)
 
         pending = store.get(SHARED_SID)["pending_draft"]
+        memory.save(store.get(SHARED_SID)["history"])
         return {
             "user_text": user_text,
             "reply_text": result["reply"],
@@ -88,6 +96,7 @@ async def text(message: str = Form(...)):
     try:
         result = run_llm_turn(llm, bunq, store, SHARED_SID, user_text=message, model=LLM_MODEL)
         pending = store.get(SHARED_SID)["pending_draft"]
+        memory.save(store.get(SHARED_SID)["history"])
         return {
             "user_text": message,
             "reply_text": result["reply"],

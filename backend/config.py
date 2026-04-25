@@ -10,6 +10,7 @@ class Config:
     openai_api_key: str
     llm_model: str
     tts_voice: str
+    elevenlabs_api_key: str
 
 REQUIRED = ["BUNQ_API_KEY", "BUNQ_ENVIRONMENT", "ANTHROPIC_API_KEY", "OPENAI_API_KEY"]
 
@@ -25,4 +26,5 @@ def load() -> Config:
         openai_api_key=os.environ["OPENAI_API_KEY"],
         llm_model=os.environ.get("LLM_MODEL", "claude-sonnet-4-6"),
         tts_voice=os.environ.get("TTS_VOICE", "alloy"),
+        elevenlabs_api_key=os.environ.get("ELEVENLABS_API_KEY", ""),
     )
