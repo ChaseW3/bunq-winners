@@ -390,22 +390,275 @@ const A11yLog = (() => {
   </script>
 
   <script>
+  // ── Config ──
+  const BACKEND = 'http://localhost:8000';
+  const ELEVENLABS_VOICE_ID = 'gE0owC0H9C8SzfDyIUtB';
+  let elevenLabsApiKey = '';
+
+  fetch(`${BACKEND}/config`)
+    .then(r => r.json())
+    .then(cfg => { elevenLabsApiKey = cfg.elevenlabs_api_key; })
+    .catch(() => {});
+
+  // ── TTS ──
+  let ttsAudio = null;
+
+  async function speakText(text) {
+    if (!text || !elevenLabsApiKey) return null;
+    try {
+      const resp = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+        {
+          method: 'POST',
+          headers: { 'xi-api-key': elevenLabsApiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text,
+            model_id: 'eleven_multilingual_v2',
+            voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+          })
+        }
+      );
+      if (!resp.ok) return null;
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      if (ttsAudio) { try { ttsAudio.pause(); } catch {} }
+      ttsAudio = new Audio(url);
+      ttsAudio.onended = () => URL.revokeObjectURL(url);
+      await ttsAudio.play();
+      return ttsAudio;
+    } catch (e) {
+      console.warn('TTS error:', e);
+      return null;
+    }
+  }
+
+  function stopTts() {
+    if (ttsAudio) { try { ttsAudio.pause(); } catch {} ttsAudio = null; }
+  }
+
+  // ── Auto-Greeting ──
+  async function triggerGreeting() {
+    EarconSystem.play('greeting');
+    A11yLog.log('EARCON', 'greeting', 'Warm chime signals app is alive');
+    A11yLog.log('AUDIO', 'AUTO-GREET', "Lynn introduced herself — no visual context needed");
+
+    await new Promise(r => setTimeout(r, 600));
+
+    setVoiceState('speaking');
+    const audio = await speakText("Hi, I'm Lynn, your bunq accessibility assistant. What can I do for you today?");
+    if (audio) {
+      audio.onended = () => { setVoiceState('idle'); };
+    } else {
+      setTimeout(() => { if (appState === 'speaking') setVoiceState('idle'); }, 4000);
+    }
+  }
+
+  // ── Voice Agent State ──
+  let appState = 'idle';
+  let pressStartedAt = 0;
+  let recorder = null;
+  let micStream = null;
+  let audioCtx = null;
+  let analyser = null;
+  let micLevel = 0;
+  let chunks = [];
+  let abortCtrl = null;
+  const MIN_HOLD_MS = 200;
+
+  function setVoiceState(s) {
+    appState = s;
+    const hint = document.querySelector('.hint');
+    if (hint) {
+      hint.textContent = ({
+        idle:      'Hold to speak',
+        listening: 'Listening…',
+        thinking:  'Thinking…',
+        speaking:  'Speaking…',
+      })[s] || 'Hold to speak';
+    }
+  }
+
+  // ── Mic ──
+  function startMicAnalyser(stream) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    function tick() {
+      if (!analyser) return;
+      analyser.getByteFrequencyData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) sum += buf[i];
+      micLevel = micLevel * 0.8 + (sum / buf.length / 255) * 0.2;
+      requestAnimationFrame(tick);
+    }
+    tick();
+  }
+
+  function teardownMic() {
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (audioCtx) { try { audioCtx.close(); } catch {} audioCtx = null; }
+    analyser = null;
+    micLevel = 0;
+  }
+
+  // ── Recording ──
+  async function startRecording() {
+    try {
+      chunks = [];
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recorder = new MediaRecorder(micStream);
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = onRecorderStop;
+      recorder.start();
+      startMicAnalyser(micStream);
+
+      EarconSystem.play('mic-on');
+      A11yLog.log('EARCON', 'mic-on', 'Audio cue confirms recording started');
+      A11yLog.log('STATE', 'listening', 'Lynn is listening — user is speaking');
+      setVoiceState('listening');
+      pressStartedAt = performance.now();
+    } catch (e) {
+      EarconSystem.play('error');
+      A11yLog.log('ERROR', 'mic-denied', 'Microphone access denied');
+      setVoiceState('idle');
+    }
+  }
+
+  function endRecordingAndSend() {
+    const heldFor = performance.now() - pressStartedAt;
+    if (heldFor < MIN_HOLD_MS) {
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.onstop = null; recorder.stop(); } catch {}
+      }
+      recorder = null;
+      teardownMic();
+      setVoiceState('idle');
+      return;
+    }
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch {}
+    }
+    EarconSystem.play('mic-off');
+    A11yLog.log('EARCON', 'mic-off', 'Audio confirms input captured');
+    teardownMic();
+
+    thinkingOsc = EarconSystem.play('thinking');
+    A11yLog.log('EARCON', 'thinking', 'Ambient tone plays while processing');
+    A11yLog.log('STATE', 'thinking', 'Lynn is processing the request');
+    setVoiceState('thinking');
+  }
+
+  function onRecorderStop() {
+    if (appState !== 'thinking') return;
+    sendAudio();
+  }
+
+  // ── Network ──
+  async function sendAudio() {
+    const blob = new Blob(chunks, { type: 'audio/webm' });
+    const form = new FormData();
+    form.append('audio', blob, 'recording.webm');
+    abortCtrl = new AbortController();
+    try {
+      const resp = await fetch(`${BACKEND}/voice`, {
+        method: 'POST',
+        body: form,
+        signal: abortCtrl.signal,
+      });
+      const data = await resp.json();
+      stopThinkingEarcon();
+      if (appState !== 'thinking') return;
+
+      // Log backend accessibility events
+      A11yLog.logBackendEvents(data.accessibility_events);
+
+      // Check for success/error earcons
+      const hasError = data.tool_calls?.some(tc => tc.is_error);
+      const hasConfirm = data.tool_calls?.some(tc => tc.name === 'confirm_draft_payment');
+      if (hasError) {
+        EarconSystem.play('error');
+        A11yLog.log('EARCON', 'error', 'Audio signals something went wrong');
+      } else if (hasConfirm) {
+        EarconSystem.play('success');
+        A11yLog.log('EARCON', 'success', 'Audio confirms action completed');
+      }
+
+      // Speak the reply
+      if (data.reply_text) {
+        A11yLog.log('AUDIO', 'tts-playback', 'Lynn speaking response aloud');
+        setVoiceState('speaking');
+        const audio = await speakText(data.reply_text);
+        if (audio) {
+          audio.onended = () => { setVoiceState('idle'); };
+        } else {
+          const ms = Math.min(8000, Math.max(1200, data.reply_text.length * 50));
+          setTimeout(() => { if (appState === 'speaking') setVoiceState('idle'); }, ms);
+        }
+      } else {
+        setVoiceState('idle');
+      }
+    } catch (e) {
+      stopThinkingEarcon();
+      if (e.name === 'AbortError') return;
+      EarconSystem.play('error');
+      A11yLog.log('ERROR', 'network', 'Could not reach backend');
+      setVoiceState('idle');
+    } finally {
+      abortCtrl = null;
+    }
+  }
+
+  function interrupt() {
+    if (abortCtrl) { try { abortCtrl.abort(); } catch {} abortCtrl = null; }
+    stopTts();
+    stopThinkingEarcon();
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.onstop = null; recorder.stop(); } catch {}
+    }
+    recorder = null;
+    teardownMic();
+  }
+
+  // ── Pointer Events (Transition + Voice) ──
   const screen = document.getElementById('screen');
   let transitionState = 0;
   let activated = false;
-  screen.addEventListener('click', () => {
-    if (activated) return;
-    transitionState = (transitionState + 1) % 3;
-    screen.classList.toggle('blurred', transitionState >= 1);
-    screen.classList.toggle('active',  transitionState >= 2);
 
-    if (transitionState === 2) {
-      activated = true;
-      A11yLog.show();
-      A11yLog.log('AUDIO', 'AUTO-GREET', 'Lynn introduced herself — no visual context needed');
-      EarconSystem.play('greeting');
+  screen.addEventListener('pointerdown', async (e) => {
+    e.preventDefault();
+    try { screen.setPointerCapture(e.pointerId); } catch {}
+
+    if (!activated) {
+      transitionState = (transitionState + 1) % 3;
+      screen.classList.toggle('blurred', transitionState >= 1);
+      screen.classList.toggle('active', transitionState >= 2);
+
+      if (transitionState === 2) {
+        activated = true;
+        A11yLog.show();
+        triggerGreeting();
+      }
+      return;
+    }
+
+    // Voice agent interaction (after activation)
+    if (appState === 'idle') {
+      await startRecording();
+    } else if (appState === 'thinking' || appState === 'speaking') {
+      interrupt();
+      await startRecording();
     }
   });
+
+  function onRelease(e) {
+    try { screen.releasePointerCapture(e.pointerId); } catch {}
+    if (activated && appState === 'listening') endRecordingAndSend();
+  }
+  screen.addEventListener('pointerup', onRelease);
+  screen.addEventListener('pointercancel', onRelease);
   </script>
 
 </body>
